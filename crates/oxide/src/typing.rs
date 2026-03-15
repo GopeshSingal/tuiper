@@ -1,5 +1,14 @@
 use std::time::Instant;
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CharState {
+    Untyped,
+    Correct,
+    Incorrect,
+    Current,
+}
+
+#[derive(Debug, Clone, Default)]
 pub struct TypingStats {
     pub wpm: f64,
     pub raw_wpm: f64,
@@ -155,3 +164,63 @@ impl TypingState {
             self.last_sample_time = Some(Instant::now());
         }
     }
+
+    pub fn type_char(&mut self, c: char) -> bool {
+        self.start();
+        let cursor = self.cursor();
+        let expected: Vec<char> = self.text.chars().collect();
+        if cursor >= expected.len() {
+            return false;
+        }
+
+        self.total_keypresses += 1;
+        if expected[cursor] == c {
+            self.correct_keypresses += 1;
+        }
+        self.input.push(c);
+        true
+    }
+
+    pub fn backspace(&mut self) -> bool {
+        if self.input.is_empty() {
+            return false;
+        }
+        self.start();
+        self.input.pop();
+        true
+    }
+
+    pub fn char_states(&self) -> Vec<CharState> {
+        let expected: Vec<char> = self.text.chars().collect();
+        let actual: Vec<char> = self.input.chars().collect();
+        let cursor = actual.len();
+        let mut out = Vec::with_capacity(expected.len());
+        for (i, &e) in expected.iter().enumerate() {
+            let state = if i < cursor {
+                if e == actual[i] {
+                    CharState::Correct
+                } else {
+                    CharState::Incorrect
+                }
+            } else if i == cursor {
+                CharState::Current
+            } else {
+                CharState::Untyped
+            };
+            out.push(state);
+        }
+        out
+    }
+
+    pub fn final_stats(&self) -> TypingStats {
+        TypingStats {
+            wpm: self.wpm(),
+            raw_wpm: self.raw_wpm(),
+            accuracy: self.accuracy(),
+            consistency: self.consistency(),
+            chars_typed: self.cursor() as u32,
+            correct_chars: self.correct_chars() as u32,
+            duration_secs: self.elapsed_secs(),
+        }
+    }
+}
