@@ -8,7 +8,7 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
-pub fn draw(frame: &mut Frame, app: &App {
+pub fn draw(frame: &mut Frame, app: &App) {
     match app.screen {
         Screen::Lobby => draw_lobby(frame),
         Screen::Race => draw_race(frame, app),
@@ -56,18 +56,18 @@ fn draw_race(frame: &mut Frame, app: &App) {
         let states = t.char_states();
         let text_chars: Vec<char> = t.text().chars().collect();
         let mut spans: Vec<Span> = Vec::new();
-        for i, &c) in text_chars.iter().enumerate() {
-            let s = match.get(i).copied().unwrap_or(CharState::Untyped) {
+        for (i, &c) in text_chars.iter().enumerate() {
+            let s = match states.get(i).copied().unwrap_or(CharState::Untyped) {
                 CharState::Correct => Span::styled(c.to_string(), Style::default().fg(Color::Green)),
-                CharState::Incorrect => Span::styled(c.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED));
+                CharState::Incorrect => Span::styled(c.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED)),
                 CharState::Current => Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::White)),
                 CharState::Untyped => Span::styled(c.to_string(), Style::default().fg(Color::DarkGray)),
             };
             spans.push(s);
         }
-        let line = Line::fram(spans);
+        let line = Line::from(spans);
         let block = Block::default().borders(Borders::ALL).title("Type the given text!");
-        let inner = block.iner(chunks[1]);
+        let inner = block.inner(chunks[1]);
         frame.render_widget(block, chunks[1]);
         frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner);
     } else {
@@ -85,7 +85,7 @@ fn draw_results(frame: &mut Frame, app: &App) {
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    if let Some(ref res) = app.result() {
+    if let Some(ref r) = app.result() {
         let text = vec![
             Line::from(""),
             Line::from(vec![Span::styled("WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.wpm))]),

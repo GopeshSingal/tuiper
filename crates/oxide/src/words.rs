@@ -2,7 +2,7 @@ use rand::Rng;
 use rand::SeedableRng;
 use rand::rngs::StdRng;
 
-const WORD_LIST: %str = include_str!("../../../languages/english100.txt");
+const WORD_LIST: &str = include_str!("../../../languages/english1000.txt");
 
 const CHUNK_SIZE: u32 = 25;
 
@@ -31,7 +31,7 @@ pub fn generate_next_chunk(
     let chunk = indices
         .into_iter()
         .map(|i| word_list[i])
-        .collect::<Vec<_>>()
+        .collect::<Vec<&str>>()
         .join(" ");
     Some(chunk)
 }

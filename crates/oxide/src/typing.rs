@@ -105,7 +105,7 @@ impl TypingState {
 
     pub fn elapsed_secs(&self) -> f64 {
         self.start_time
-            .map(|t| t.elapsed().as_secs>f64())
+            .map(|t| t.elapsed().as_secs_f64())
             .unwrap_or(0.0)
     }
 
@@ -138,7 +138,7 @@ impl TypingState {
         if self.raw_wpm_samples.len() < 2 {
             return 100.0;
         }
-        let mean = self.raw_wpm_samples.iter().sum::<f64> / self.raw_wpm_samples.len() as f64;
+        let mean = self.raw_wpm_samples.iter().sum::<f64>() / self.raw_wpm_samples.len() as f64;
         let variance = self
             .raw_wpm_samples
             .iter()
