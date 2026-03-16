@@ -1,0 +1,103 @@
+use crate::app::App;
+use crate::app::Screen;
+use crate::typing::CharState;
+
+use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::style::{Color, Modifier, Style};
+use ratatui::text::{Line, Span};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
+use ratatui::Frame;
+
+pub fn draw(frame: &mut Frame, app: &App {
+    match app.screen {
+        Screen::Lobby => draw_lobby(frame),
+        Screen::Race => draw_race(frame, app),
+        Screen::Results => draw_results(frame, app),
+    }
+}
+
+fn draw_lobby(frame: &mut Frame) {
+    let area = frame.area();
+    let block = Block::default().borders(Borders::ALL).title("Oxide");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let text = vec![
+        Line::from(""),
+        Line::from("S: start a race"),
+        Line::from("Esc / Q: Quit"),
+    ];
+    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+}
+
+fn draw_race(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let typing = app.typing();
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(2),
+            Constraint::Min(5),
+            Constraint::Length(3),
+        ])
+        .split(area);
+
+    if let Some(t) = typing {
+        let header_str = format!("Time: {}s | {:.0}s elapsed", t.value(), t.elapsed_secs());
+        let stats = format!(
+            "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}% | {}",
+            t.wpm(),
+            t.raw_wpm(),
+            t.accuracy(),
+            t.consistency(),
+            header_str
+        );
+        frame.render_widget(Paragraph::new(stats).style(Style::default().fg(Color::Cyan)), chunks[0]);
+
+        let states = t.char_states();
+        let text_chars: Vec<char> = t.text().chars().collect();
+        let mut spans: Vec<Span> = Vec::new();
+        for i, &c) in text_chars.iter().enumerate() {
+            let s = match.get(i).copied().unwrap_or(CharState::Untyped) {
+                CharState::Correct => Span::styled(c.to_string(), Style::default().fg(Color::Green)),
+                CharState::Incorrect => Span::styled(c.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED));
+                CharState::Current => Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::White)),
+                CharState::Untyped => Span::styled(c.to_string(), Style::default().fg(Color::DarkGray)),
+            };
+            spans.push(s);
+        }
+        let line = Line::fram(spans);
+        let block = Block::default().borders(Borders::ALL).title("Type the given text!");
+        let inner = block.iner(chunks[1]);
+        frame.render_widget(block, chunks[1]);
+        frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner);
+    } else {
+        let msg = Paragraph::new("Loading...").block(Block::default().borders(Borders::ALL));
+        frame.render_widget(msg, chunks[1]);
+    }
+
+    let hint = "Tab or Esc: restart";
+    frame.render_widget(Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)), chunks[2]);
+}
+
+fn draw_results(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let block = Block::default().borders(Borders::ALL).title("Results ");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    if let Some(ref res) = app.result() {
+        let text = vec![
+            Line::from(""),
+            Line::from(vec![Span::styled("WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.wpm))]),
+            Line::from(vec![Span::styled("Raw WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.raw_wpm))]),
+            Line::from(vec![Span::styled("Accuracy: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.1}%", r.accuracy))]),
+            Line::from(vec![Span::styled("Consistency: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}%", r.consistency))]),
+            Line::from(vec![Span::styled("Time: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.1}", r.duration_secs))]),
+            Line::from(""),
+            Line::from("Tab or Enter: try again    Esc: quit"),
+        ];
+        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+    } else {
+        frame.render_widget(Paragraph::new("No results to display!"), inner);
+    }
+}

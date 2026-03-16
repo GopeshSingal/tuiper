@@ -5,7 +5,6 @@ use crate::words::{generate_next_chunk};
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Lobby,
-    QueueWaiting,
     Race,
     Results,
 }
