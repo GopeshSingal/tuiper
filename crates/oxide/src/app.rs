@@ -1,7 +1,8 @@
 use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk};
 
-use protocols::{ClientMessage, RaceResults};
+use protocols::{ClientMessage, RaceResults, ServerMessage};
+use protocols::ServerMessage::*;
 
 use std::sync::mpsc;
 
@@ -52,6 +53,30 @@ impl App {
             opponent_chars: 0,
             last_progress_sent: 0.0,
             race_results: None,
+        }
+    }
+
+    pub fn handle_server_message(&mut self, msg: ServerMessage) {
+        match msg {
+            Queue => {
+                self.screen = Screen::Queue;
+            }
+            RaceStart { race_id: _, value, seed } => {
+                self.start_multiplayer(seed, value);
+            }
+            OpponentProgress { wpm, chars_typed } => {
+                self.opponent_wpm = wpm;
+                self.opponent_chars = chars_typed;
+            }
+            RaceEnd { results } => {
+                self.race_results = Some(results);
+                self.typing = None;
+                self.result = None;
+                self.screen = Screen::Results;
+            }
+            Error { message: _ } => {
+                self.screen = Screen::Lobby;
+            }
         }
     }
 
