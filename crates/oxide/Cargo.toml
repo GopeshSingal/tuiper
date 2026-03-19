@@ -12,3 +12,6 @@ ratatui = "0.28"
 crossterm = "0.28"
 rand = "0.8"
 
+protocols = {
+    path = "../protocols"
+}

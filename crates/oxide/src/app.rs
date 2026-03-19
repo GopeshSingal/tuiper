@@ -1,10 +1,14 @@
 use crate::typing::{TypingState, TypingStats};
-
 use crate::words::{generate_next_chunk};
+
+use protocols::{ClientMessage, RaceResults};
+
+use std::sync::mpsc;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
     Lobby,
+    Queue,
     Race,
     Results,
 }
@@ -21,6 +25,13 @@ pub struct App {
     // Streaming words
     pub seed: Option<u64>,
     pub words_so_far: u32,
+    
+    // multiplayer
+    pub ws_tx: Option<mpsc::Sender<ClientMessage>>,
+    pub opponent_wpm: f64,
+    pub opponent_chars: u32,
+    pub last_progress_sent: f64,
+    pub race_results: Option<RaceResults>,
 }
 
 impl App {
@@ -30,8 +41,17 @@ impl App {
             typing: None,
             result: None,
             quit: false,
+
+            // streaming
             seed: None,
             words_so_far: 0,
+
+            // multiplayer
+            ws_tx: None,
+            opponent_wpm: 0.0,
+            opponent_chars: 0,
+            last_progress_sent: 0.0,
+            race_results: None,
         }
     }
 
@@ -41,6 +61,22 @@ impl App {
 
         let seed = rand::random();
         let first_chunk = generate_next_chunk(seed, value, 0)
+            .unwrap_or_else(|| "the quick brown fox".to_string());
+        let word_count = first_chunk.split_whitespace().count() as u32;
+        self.typing = Some(TypingState::new(first_chunk, value));
+        self.seed = Some(seed);
+        self.words_so_far = word_count;
+    }
+
+    pub fn start_multiplayer(&mut self, seed: u64, value: u32) {
+        self.result = None;
+        self.race_results = None;
+        self.opponent_wpm = 0.0;
+        self.opponent_chars = 0;
+        self.last_progress_sent = 0.0;
+        self.screen = Screen::Race;
+
+        let first_chunk = crate::words::generate_next_chunk(seed, value, 0)
             .unwrap_or_else(|| "the quick brown fox".to_string());
         let word_count = first_chunk.split_whitespace().count() as u32;
         self.typing = Some(TypingState::new(first_chunk, value));
