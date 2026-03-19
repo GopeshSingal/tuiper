@@ -103,8 +103,30 @@ impl App {
                     }
                 }
             }
+            
+            // Send progress over WebSocket to opponent
+            let elapsed = t.elapsed_secs();
+            if let Some(ref tx) = self.ws_tx {
+                if elapsed - self.last_progress_sent >= 0.3 {
+                    let _ = tx.send(ClientMessage::RaceProgress {
+                        wpm: t.wpm(),
+                        accuracy: t.accuracy(),
+                        chars_typed: t.cursor() as u32,
+                    });
+                    self.last_progress_sent = elapsed;
+                }
+            }
 
             if t.is_finished() {
+                if let Some(ref tx) = self.ws_tx {
+                    let stats = t.final_stats();
+                    let _ = tx.send(ClientMessage::RaceFinished {
+                        wpm: stats.wpm,
+                        accuracy: stats.accuracy,
+                        consistency: stats.consistency,
+                        chars_typed: stats.chars_typed,
+                    });
+                }
                 self.result = Some(t.final_stats());
                 self.typing = None;
                 self.seed = None;
