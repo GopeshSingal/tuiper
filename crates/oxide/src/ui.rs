@@ -11,6 +11,7 @@ use ratatui::Frame;
 pub fn draw(frame: &mut Frame, app: &App) {
     match app.screen {
         Screen::Lobby => draw_lobby(frame),
+        Screen::Queue => draw_queue(frame),
         Screen::Race => draw_race(frame, app),
         Screen::Results => draw_results(frame, app),
     }
@@ -27,6 +28,18 @@ fn draw_lobby(frame: &mut Frame) {
         Line::from("Esc / Q: Quit"),
     ];
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+}
+
+fn draw_queue(frame: &mut Frame) {
+    let area = frame.area();
+    let block = Block::default().borders(Borders::ALL).title("Finding opponent");
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let text = vec![
+        Line::from(""),
+        Line::from("Esc / Q: Quit"),
+    ];
+    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: False }), inner);
 }
 
 fn draw_race(frame: &mut Frame, app: &App) {
