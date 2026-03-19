@@ -66,6 +66,13 @@ fn draw_race(frame: &mut Frame, app: &App) {
         );
         frame.render_widget(Paragraph::new(stats).style(Style::default().fg(Color::Cyan)), chunks[0]);
 
+        if app.is_multi() {
+            let opponent_stats = format!("Opponent WPM: {:.0}, Opponent Chars: {}", app.opponent_wpm, app.opponent_chars);
+            frame.render_widget(Paragraph::new(opponent_stats).style(Style::default().fg(Color::Yellow)), chunks[1]);
+        } else {
+            frame.render_widget(Paragraph::new(""), chunks[1]);
+        }
+
         let states = t.char_states();
         let text_chars: Vec<char> = t.text().chars().collect();
         let mut spans: Vec<Span> = Vec::new();
@@ -85,11 +92,15 @@ fn draw_race(frame: &mut Frame, app: &App) {
         frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner);
     } else {
         let msg = Paragraph::new("Loading...").block(Block::default().borders(Borders::ALL));
-        frame.render_widget(msg, chunks[1]);
+        frame.render_widget(msg, chunks[2]);
     }
 
-    let hint = "Tab or Esc: restart";
-    frame.render_widget(Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)), chunks[2]);
+    let hint = if app.is_multi() {
+        "Race is in progress"
+    } else {
+        "Tab or Esc: restart"
+    };
+    frame.render_widget(Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)), chunks[3]);
 }
 
 fn draw_results(frame: &mut Frame, app: &App) {

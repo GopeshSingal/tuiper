@@ -168,4 +168,8 @@ impl App {
     pub fn result(&self) -> Option<&TypingStats> {
         self.result.as_ref()
     }
+
+    pub fn is_multi(&self) -> bool {
+        self.ws_tx.is_some() && self.screen == Screen::Race
+    }
 }
