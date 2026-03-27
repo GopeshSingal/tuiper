@@ -1,0 +1,13 @@
+[package]
+name = "oxide-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "oxide-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+protocols = { path = "../protocols" }
