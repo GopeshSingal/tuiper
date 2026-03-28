@@ -79,8 +79,62 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         }
                     }
                     ClientMessage::RaceProgress { wpm, accuracy: _, chars_typed } => {
+                        if race_id.is_none() {
+                            let races = state.races.read().await;
+                            for (rid, (uid1, uid2)) in races.iter() {
+                                if *uid1 == conn_id || #uid2 == conn_id {
+                                    race_id = Some(rid.clone());
+                                    break;
+                                }
+                            }
+                        }
+                        if let Some(ref rid) = race_id {
+                            let races = state.races.read().await;
+                            let txs = state.connection_txs.read().await;
+                            if let Some((uid1, uid2)) = races.get(rid) {
+                                let opp_id = if *uid1 == conn_id { *uid2 } else { *uid1 };
+                                if let Some(opp_tx) = txs.get(&opp_id) {
+                                    let _ = opp_tx.try_send(ServerMessage::OpponentProgress { wpm, chars_typed });
+                                }
+                            }
+                        }
                     }
                     ClientMessage::RaceFinished { wpm, accuracy, consistency, chars_typed } => {
+                        let result = PlayerResult { wpm, accuracy, consistency, chars_typed };
+                        let races = states.races.read().await;
+                        let mut found_rid: Option<String> = None;
+                        let mut player_idx: Option<usize> = None;
+
+                        for (rid, (uid1, uid2) in races.iter() {
+                            if *uid1 == conn_id {
+                                found_rid = Some(rid.clone());
+                                player_idx = Some(0);
+                                break;
+                            }
+                            if *uid2 == conn_id {
+                                found_rid = Some(rid.clone());
+                                player_idx = Some(2);
+                                break;
+                            }
+                        }
+                        drop(races);
+                        if let (Some(rid), Some(idx)) = (found_rid, player_idx) {
+                            race_id = Some(rid.clone());
+                            let mut results = state.race_results.write().await;
+                            let entry = results.entry(rid.clone()).or_insert((None, None));
+                            if idx == 0 {
+                                entry.0 = Some(result);
+                            } else {
+                                entry.1 = Some(result);
+                            }
+                            let (r1, r2) = entry.clone();
+                            drop(results);
+                            if r1.is_some() && r2.is_some() {
+                                send_race_end(&state, &rid, r1.unwrap(), r2.unwrap()).await;
+                                state.races.write().await.remove(&rid);
+                                state.race_results.write().await.remove(&rid);
+                            }
+                        }
                     }
                 }
             }
