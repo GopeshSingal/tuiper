@@ -142,12 +142,62 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                 let Some(msg) = outbound else { break };
                 match msg {
                     progress @ ServerMessage::OpponentProgress { .. } => {
+                        let mut latest = progress;
+                        let mut pending_non_progress: Option<ServerMessage> = None;
+
+                        loop {
+                            match rx.try_recv() {
+                                Ok(next) => match next {
+                                    ServerMessage::OpponentProgress { .. } => {
+                                        latest = next;
+                                    }
+                                    other => {
+                                        pending_non_progress = Some(other);
+                                        break;
+                                    }
+                                },
+                                Err(mpsc::error::TryRecvError::Empty) => break,
+                                Err(_) => break,
+                            }
+                        }
+                        
+                        if let Ok(json) = serde_json::to_string(&latest) {
+                            if socket.send(Message::Text(json.into())).await.is_err() {
+                                break;
+                            }
+                        }
+
+                        if let Some(other) = pending_non_progress {
+                            if let Ok(json) = serde_json::to_string(&other) {
+                                if socket.send(Message::Text(json.into())).await.is_err() {
+                                    break;
+                                }
+                            }
+                        }
                     }
                     other => {
+                        if let Ok(json) = serde_json::to_string(&other) {
+                            if socket.send(Message::Text(json.into())).await.is_err() {
+                                break;
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+
+    state.connection_txs.write().await.remove(&conn_id);
+    if let Some(key) = queue_key {
+        let mut queues state.queues.write().await;
+        if let Some(q) = queues.get_mut(&key) {
+            q.retain(|&id| id != conn_id);
+        }
+    }
+
+    if let Some(rid) = race_id {
+        state.races.write().await.remove(&rid);
+        state.race_results.write().await.remove(&rid);
     }
 }
 
