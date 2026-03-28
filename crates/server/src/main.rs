@@ -3,9 +3,14 @@ use protocols::{PlayerResult, ServerMessage};
 use axum::extract::State;
 use axum::extract::ws::{WebSocket, WebSocketUpgrade};
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicU64, Ordering};
 use tokio::sync::{mpsc, RwLock};
 
 type SharedState = Arc<AppState>;
+
+static NEXT_CONN_ID: AtomicU64 = AtomicU64::new(0);
+
+const OUTBOUND_CHANNEL_CAPACITY: usize = 32;
 
 struct AppState {
     queues: RwLock<HashMap<u32, Vec<u64>>>,
@@ -35,3 +40,16 @@ async fn main() {
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
+
+async fn ws_handler(ws: WebSocketUpgrade, State(state): State<SharedState>) -> Response {
+    ws.on_upgrade(move |socket| handle_socket(socket, state))
+}
+
+async fn handle_socket(mut socket: WebSocket, state: SharedState) {
+    let (tx, mut rx) = mpsc::channel::<ServerMessage>(OUTBOUND_CHANNEL_CAPACITY);
+    let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
+    state.connection_txs.write().await.insert(conn_id, tx.clone());
+    let mut queue_key: Option<u32> = None;
+    let mut race_id: Option<String> = None;
+}
+
