@@ -51,5 +51,54 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
     state.connection_txs.write().await.insert(conn_id, tx.clone());
     let mut queue_key: Option<u32> = None;
     let mut race_id: Option<String> = None;
+
+    loop {
+        tokio::select! {
+            inbound = socket.recv() => {
+                let Some(Ok(Message::Text(text))) = inbound else { break };
+                let msg: ClientMessage = match serde_json::from_str(&text) {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                match msg {
+                    ClientMessage::JoinQueue { value } => {
+                        let key = value;
+                        queue_key = Some(key);
+                        let mut queues = state.queues.write().await;
+                        queues.entry(key).or_default().push(conn_id);
+                        drop(queues);
+                        let _ = tx.try_send(ServerMessage::QueueWaiting);
+                        try_match(&state, value).await;
+                    }
+                    ClientMessage::LeaveQueue => {
+                        if let Some(key) = queue_key.take() {
+                            let mut queues = state.queues.write().await;
+                            if let Some(q) = queues.get_mut(&key) {
+                                q.retain(|&id| id != conn_id);
+                            }
+                        }
+                    }
+                    ClientMessage::RaceProgress { wpm, accuracy: _, chars_typed } => {
+                    }
+                    ClientMessage::RaceFinished { wpm, accuracy, consistency, chars_typed } => {
+                    }
+                }
+            }
+            outbound = rx.recv() => {
+                let Some(msg) = outbound else { break };
+                match msg {
+                    progress @ ServerMessage::OpponentProgress { .. } => {
+                    }
+                    other => {
+                    }
+                }
+            }
+        }
+    }
 }
 
+async fn try_match(state: &SharedState, key: u32) {
+}
+
+async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2: PlayerResult) {
+}
