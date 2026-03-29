@@ -1,9 +1,12 @@
-use protocols::{PlayerResult, ServerMessage};
+use protocols::{ClientMessage, PlayerResult, RaceResults, ServerMessage, Winner};
 
 use axum::extract::State;
-use axum::extract::ws::{WebSocket, WebSocketUpgrade};
+use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::response::Response;
+use axum::routing::get;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use tokio::sync::{mpsc, RwLock};
 
 type SharedState = Arc<AppState>;
@@ -36,7 +39,7 @@ async fn main() {
     let app = axum::Router::new()
         .route("/ws", get(ws_handler))
         .with_state(state);
-    let addr = std::new::SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     axum::serve(listener, app).await.unwrap();
 }
@@ -67,7 +70,7 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         let mut queues = state.queues.write().await;
                         queues.entry(key).or_default().push(conn_id);
                         drop(queues);
-                        let _ = tx.try_send(ServerMessage::QueueWaiting);
+                        let _ = tx.try_send(ServerMessage::Queue);
                         try_match(&state, value).await;
                     }
                     ClientMessage::LeaveQueue => {
@@ -82,7 +85,7 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         if race_id.is_none() {
                             let races = state.races.read().await;
                             for (rid, (uid1, uid2)) in races.iter() {
-                                if *uid1 == conn_id || #uid2 == conn_id {
+                                if *uid1 == conn_id || *uid2 == conn_id {
                                     race_id = Some(rid.clone());
                                     break;
                                 }
@@ -101,11 +104,11 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                     }
                     ClientMessage::RaceFinished { wpm, accuracy, consistency, chars_typed } => {
                         let result = PlayerResult { wpm, accuracy, consistency, chars_typed };
-                        let races = states.races.read().await;
+                        let races = state.races.read().await;
                         let mut found_rid: Option<String> = None;
                         let mut player_idx: Option<usize> = None;
 
-                        for (rid, (uid1, uid2) in races.iter() {
+                        for (rid, (uid1, uid2)) in races.iter() {
                             if *uid1 == conn_id {
                                 found_rid = Some(rid.clone());
                                 player_idx = Some(0);
@@ -189,7 +192,7 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
 
     state.connection_txs.write().await.remove(&conn_id);
     if let Some(key) = queue_key {
-        let mut queues state.queues.write().await;
+        let mut queues = state.queues.write().await;
         if let Some(q) = queues.get_mut(&key) {
             q.retain(|&id| id != conn_id);
         }
@@ -217,8 +220,8 @@ async fn try_match(state: &SharedState, key: u32) {
     drop(queues);
 
     let txs = state.connection_txs.read().await;
-    let (tx1, tx2) = match(txs.get(&uid1), txs.get(&uid2)) {
-        Some(t1), Some(t2) => ((t1.clone(), t2.clone()),
+    let (tx1, tx2) = match (txs.get(&uid1), txs.get(&uid2)) {
+        (Some(t1), Some(t2)) => (t1.clone(), t2.clone()),
         _ => return,
     };
     drop(txs);
@@ -236,14 +239,14 @@ async fn try_match(state: &SharedState, key: u32) {
         seed,
     };
     let _ = tx1.send(start1.clone()).await;
-    let _ - tx2.send(start2.clone()).await;
+    let _ = tx2.send(start2.clone()).await;
 
     state.races.write().await.insert(race_id.clone(), (uid1, uid2));
     state.race_results.write().await.insert(race_id, (None, None));
 }
 
 async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2: PlayerResult) {
-    let winner = if (r1.wpm > r2.wpm) {
+    let winner = if r1.wpm > r2.wpm {
         Some(Winner::Me)
     } else {
         Some(Winner::Opponent)

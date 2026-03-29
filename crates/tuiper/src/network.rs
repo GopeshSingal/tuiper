@@ -3,6 +3,8 @@ use std::sync::mpsc;
 use tokio::sync::mpsc as tmpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use protocols::{ClientMessage, ServerMessage};
+
 pub fn run_ws_thread(
     url: String,
     main_tx: mpsc::Sender<ServerMessage>,
