@@ -3,9 +3,10 @@ A terminal user-interface for practicing typing and for racing against fellow ty
 
 ## Features
 - Solo practicing mode
+- Real-time multiplayer between two players (locally)
 
 ## TODO
-- Real-time multiplayer between two players
+- Support online multiplayer
 - Support multiple language types
 - Support multiple modes (words, quotes)
 - Support aesthetic configuration
