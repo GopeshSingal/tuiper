@@ -202,7 +202,76 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
 }
 
 async fn try_match(state: &SharedState, key: u32) {
+    let value = key;
+    let mut queues = state.queues.write().await;
+    let mut queue = queues.remove(&key).unwrap_or_default();
+    if queue.len() < 2 {
+        queues.insert(key, queue);
+        return;
+    }
+    let uid1 = queue.remove(0);
+    let uid2 = queue.remove(0);
+    if !queue.is_empty() {
+        queues.insert(key, queue);
+    }
+    drop(queues);
+
+    let txs = state.connection_txs.read().await;
+    let (tx1, tx2) = match(txs.get(&uid1), txs.get(&uid2)) {
+        Some(t1), Some(t2) => ((t1.clone(), t2.clone()),
+        _ => return,
+    };
+    drop(txs);
+
+    let race_id = uuid::Uuid::new_v4().to_string();
+    let seed = rand::random::<u64>();
+    let start1 = ServerMessage::RaceStart {
+        race_id: race_id.clone(),
+        value,
+        seed,
+    };
+    let start2 = ServerMessage::RaceStart {
+        race_id: race_id.clone(),
+        value,
+        seed,
+    };
+    let _ = tx1.send(start1.clone()).await;
+    let _ - tx2.send(start2.clone()).await;
+
+    state.races.write().await.insert(race_id.clone(), (uid1, uid2));
+    state.race_results.write().await.insert(race_id, (None, None));
 }
 
 async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2: PlayerResult) {
+    let winner = if (r1.wpm > r2.wpm) {
+        Some(Winner::Me)
+    } else {
+        Some(Winner::Opponent)
+    };
+    
+    let results1 = RaceResults {
+        me: r1.clone(),
+        opponent: r2.clone(),
+        winner: winner.clone(),
+    };
+    let results2 = RaceResults {
+        me: r2,
+        opponent: r1,
+        winner: winner.map(|w| match w {
+            Winner::Me => Winner::Opponent,
+            Winner::Opponent => Winner::Me,
+        }),
+    };
+
+    let (tx1, tx2) = {
+        let races = state.races.read().await;
+        let txs = state.connection_txs.read().await;
+        let Some((uid1, uid2)) = races.get(race_id) else { return };
+        let Some(tx1) = txs.get(uid1) else { return };
+        let Some(tx2) = txs.get(uid2) else { return };
+        (tx1.clone(), tx2.clone())
+    };
+
+    let _ = tx1.send(ServerMessage::RaceEnd { results: results1 }).await;
+    let _ = tx2.send(ServerMessage::RaceEnd { results: results2 }).await;
 }
