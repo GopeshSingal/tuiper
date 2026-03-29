@@ -49,6 +49,7 @@ fn draw_race(frame: &mut Frame, app: &App) {
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(2),
+            Constraint::Length(2),
             Constraint::Min(5),
             Constraint::Length(3),
         ])
@@ -87,8 +88,8 @@ fn draw_race(frame: &mut Frame, app: &App) {
         }
         let line = Line::from(spans);
         let block = Block::default().borders(Borders::ALL).title("Type the given text!");
-        let inner = block.inner(chunks[1]);
-        frame.render_widget(block, chunks[1]);
+        let inner = block.inner(chunks[2]);
+        frame.render_widget(block, chunks[2]);
         frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner);
     } else {
         let msg = Paragraph::new("Loading...").block(Block::default().borders(Borders::ALL));
