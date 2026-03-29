@@ -39,7 +39,7 @@ fn draw_queue(frame: &mut Frame) {
         Line::from(""),
         Line::from("Esc / Q: Quit"),
     ];
-    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: False }), inner);
+    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
 }
 
 fn draw_race(frame: &mut Frame, app: &App) {
@@ -108,8 +108,24 @@ fn draw_results(frame: &mut Frame, app: &App) {
     let block = Block::default().borders(Borders::ALL).title("Results ");
     let inner = block.inner(area);
     frame.render_widget(block, area);
-
-    if let Some(ref r) = app.result() {
+    
+    if let Some(ref res) = app.race_results {
+        let winner_str = match &res.winner {
+            Some(protocols::Winner::Me) => "You won :)",
+            Some(protocols::Winner::Opponent) => "You lost :(",
+            None => "",
+        };
+        let text = vec![
+            Line::from(""),
+            Line::from(Span::styled(winner_str, Style::default().fg(Color::Green))),
+            Line::from(""),
+            Line::from(vec![Span::styled("You: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy))]),
+            Line::from(vec![Span::styled("Opponent: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy))]),
+            Line::from(""),
+            Line::from("Tab or Enter: try again   Esc: quit"),
+        ];
+        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+    } else if let Some(ref r) = app.result() {
         let text = vec![
             Line::from(""),
             Line::from(vec![Span::styled("WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.wpm))]),
