@@ -1,4 +1,4 @@
-# oxide
+# tuiper
 A terminal user-interface for practicing typing and for racing against fellow typists.
 
 ## Features (to be implemented)
