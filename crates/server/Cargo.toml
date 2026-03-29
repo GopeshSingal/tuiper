@@ -1,0 +1,20 @@
+[package]
+name = "tuiper-server"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "tuiper-server"
+path = "src/main.rs"
+
+[dependencies]
+axum = { version = "0.7", features = ["ws"] }
+tokio = { version = "1", features = ["full"] }
+protocols = { path = "../protocols" }
+rand = "0.8"
+serde = {
+    version = "1.0",
+    features = ["derive"]
+}
+serde_json = "1.0"
+uuid = { version = "1", features = ["v4"] }
