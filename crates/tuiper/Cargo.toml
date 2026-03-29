@@ -1,10 +1,10 @@
 [package]
-name = "oxide"
+name = "tuiper"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "oxide"
+name = "tuiper"
 path = "src/main.rs"
 
 [dependencies]

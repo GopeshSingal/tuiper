@@ -19,7 +19,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
 fn draw_lobby(frame: &mut Frame) {
     let area = frame.area();
-    let block = Block::default().borders(Borders::ALL).title("Oxide");
+    let block = Block::default().borders(Borders::ALL).title("Tuiper");
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let text = vec![

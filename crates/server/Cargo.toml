@@ -1,10 +1,10 @@
 [package]
-name = "oxide-server"
+name = "tuiper-server"
 version = "0.1.0"
 edition = "2021"
 
 [[bin]]
-name = "oxide-server"
+name = "tuiper-server"
 path = "src/main.rs"
 
 [dependencies]
