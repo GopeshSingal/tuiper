@@ -28,6 +28,7 @@ pub enum ServerMessage {
         race_id: String,
         value: u32,
         seed: u64,
+        start_at_unix_ms: u64,
     },
     OpponentProgress {
         wpm: f64,

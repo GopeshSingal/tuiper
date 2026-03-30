@@ -72,6 +72,7 @@ fn run_app(
                         _ => {}
                     },
                     Screen::Race => {
+                        let waiting_for_start = app.is_waiting_for_multiplayer_start();
                         if let Some(ref mut t) = app.typing {
                             match key.code {
                                 KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
@@ -79,10 +80,14 @@ fn run_app(
                                     break;
                                 }
                                 KeyCode::Backspace => {
-                                    t.backspace();
+                                    if !waiting_for_start {
+                                        t.backspace();
+                                    }
                                 }
                                 KeyCode::Char(c) => {
-                                    t.type_char(c);
+                                    if !waiting_for_start {
+                                        t.type_char(c);
+                                    }
                                 }
                                 KeyCode::Tab => {
                                     let value = t.value();

@@ -1,3 +1,4 @@
+use common::{now_unix_ms, MULTIPLAYER_GRACE_PERIOD_SECS};
 use protocols::{ClientMessage, PlayerResult, RaceResults, ServerMessage, Winner};
 
 use axum::extract::State;
@@ -228,15 +229,18 @@ async fn try_match(state: &SharedState, key: u32) {
 
     let race_id = uuid::Uuid::new_v4().to_string();
     let seed = rand::random::<u64>();
+    let start_at_unix_ms = now_unix_ms().saturating_add(MULTIPLAYER_GRACE_PERIOD_SECS.saturating_mul(1000));
     let start1 = ServerMessage::RaceStart {
         race_id: race_id.clone(),
         value,
         seed,
+        start_at_unix_ms,
     };
     let start2 = ServerMessage::RaceStart {
         race_id: race_id.clone(),
         value,
         seed,
+        start_at_unix_ms,
     };
     let _ = tx1.send(start1.clone()).await;
     let _ = tx2.send(start2.clone()).await;
