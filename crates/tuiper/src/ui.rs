@@ -67,7 +67,11 @@ fn draw_race(frame: &mut Frame, app: &App) {
         );
         frame.render_widget(Paragraph::new(stats).style(Style::default().fg(Color::Cyan)), chunks[0]);
 
-        if app.is_multi() {
+        if app.is_waiting_for_multiplayer_start() {
+            let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
+            let waiting = format!("Starting in {}s...", countdown);
+            frame.render_widget(Paragraph::new(waiting).style(Style::default().fg(Color::Yellow)), chunks[1]);
+        } else if app.is_multi() {
             let opponent_stats = format!("Opponent WPM: {:.0}, Opponent Chars: {}", app.opponent_wpm, app.opponent_chars);
             frame.render_widget(Paragraph::new(opponent_stats).style(Style::default().fg(Color::Yellow)), chunks[1]);
         } else {
@@ -96,7 +100,9 @@ fn draw_race(frame: &mut Frame, app: &App) {
         frame.render_widget(msg, chunks[2]);
     }
 
-    let hint = if app.is_multi() {
+    let hint = if app.is_waiting_for_multiplayer_start() {
+        "Waiting for race to start"
+    } else if app.is_multi() {
         "Race is in progress"
     } else {
         "Tab or Esc: restart"

@@ -1,6 +1,7 @@
 use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk};
 
+use common::now_unix_ms;
 use protocols::{ClientMessage, RaceResults, ServerMessage};
 use protocols::ServerMessage::*;
 
@@ -33,6 +34,7 @@ pub struct App {
     pub opponent_chars: u32,
     pub last_progress_sent: f64,
     pub race_results: Option<RaceResults>,
+    pub multiplayer_start_at_unix_ms: Option<u64>,
 }
 
 impl App {
@@ -53,6 +55,7 @@ impl App {
             opponent_chars: 0,
             last_progress_sent: 0.0,
             race_results: None,
+            multiplayer_start_at_unix_ms: None,
         }
     }
 
@@ -61,8 +64,8 @@ impl App {
             Queue => {
                 self.screen = Screen::Queue;
             }
-            RaceStart { race_id: _, value, seed } => {
-                self.start_multiplayer(seed, value);
+            RaceStart { race_id: _, value, seed, start_at_unix_ms } => {
+                self.start_multiplayer(seed, value, start_at_unix_ms);
             }
             OpponentProgress { wpm, chars_typed } => {
                 self.opponent_wpm = wpm;
@@ -72,6 +75,7 @@ impl App {
                 self.race_results = Some(results);
                 self.typing = None;
                 self.result = None;
+                self.multiplayer_start_at_unix_ms = None;
                 self.screen = Screen::Results;
             }
             Error { message: _ } => {
@@ -83,6 +87,7 @@ impl App {
     pub fn start_race(&mut self, value: u32) {
         self.result = None;
         self.screen = Screen::Race;
+        self.multiplayer_start_at_unix_ms = None;
 
         let seed = rand::random();
         let first_chunk = generate_next_chunk(seed, value, 0)
@@ -93,12 +98,13 @@ impl App {
         self.words_so_far = word_count;
     }
 
-    pub fn start_multiplayer(&mut self, seed: u64, value: u32) {
+    pub fn start_multiplayer(&mut self, seed: u64, value: u32, start_at_unix_ms: u64) {
         self.result = None;
         self.race_results = None;
         self.opponent_wpm = 0.0;
         self.opponent_chars = 0;
         self.last_progress_sent = 0.0;
+        self.multiplayer_start_at_unix_ms = Some(start_at_unix_ms);
         self.screen = Screen::Race;
 
         let first_chunk = crate::words::generate_next_chunk(seed, value, 0)
@@ -111,6 +117,11 @@ impl App {
 
     pub fn tick(&mut self) {
         if let Some(ref mut t) = self.typing {
+            if let Some(start_at_unix_ms) = self.multiplayer_start_at_unix_ms {
+                if t.start_time().is_none() && now_unix_ms() >= start_at_unix_ms {
+                    t.start();
+                }
+            }
             t.sample_raw_wpm();
 
             if let Some(seed) = self.seed {
@@ -156,6 +167,7 @@ impl App {
                 self.typing = None;
                 self.seed = None;
                 self.words_so_far = 0;
+                self.multiplayer_start_at_unix_ms = None;
                 self.screen = Screen::Results;
             }
         }
@@ -171,5 +183,20 @@ impl App {
 
     pub fn is_multi(&self) -> bool {
         self.ws_tx.is_some() && self.screen == Screen::Race
+    }
+
+    pub fn is_waiting_for_multiplayer_start(&self) -> bool {
+        self.is_multi()
+            && self.typing.as_ref().is_some_and(|t| t.start_time().is_none())
+            && self.multiplayer_start_at_unix_ms.is_some()
+    }
+
+    pub fn multiplayer_countdown_secs(&self) -> Option<u64> {
+        if !self.is_waiting_for_multiplayer_start() {
+            return None;
+        }
+        let now = now_unix_ms();
+        self.multiplayer_start_at_unix_ms
+            .map(|start_at| start_at.saturating_sub(now).div_ceil(1000))
     }
 }
