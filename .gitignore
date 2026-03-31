@@ -1,3 +1,17 @@
 *.DS_Store
+debug-docs/
 target/
 *Cargo.lock
+.cursorignore
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*.terraform.lock.hcl
