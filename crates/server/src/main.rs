@@ -34,14 +34,23 @@ impl AppState {
     }
 }
 
+fn listen_port() -> u16 {
+    std::env::var("PORT")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(8080)
+}
+
 #[tokio::main]
 async fn main() {
+    let port = listen_port();
     let state: SharedState = Arc::new(AppState::new());
     let app = axum::Router::new()
         .route("/ws", get(ws_handler))
         .with_state(state);
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], 8080));
+    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
+    eprintln!("tuiper-server listening on http://0.0.0.0:{}/ws", port);
     axum::serve(listener, app).await.unwrap();
 }
 

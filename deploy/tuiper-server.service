@@ -1,0 +1,17 @@
+[Unit]
+Description=tuiper multiplayer WebSocket server
+After=network.target
+
+[Service]
+Type=simple
+Environment=PORT=8080
+ExecStart=/usr/local/bin/tuiper-server
+Restart=on-failure
+RestartSec=3
+
+# Hardening (optional; relax if your distro paths differ)
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target
