@@ -25,6 +25,7 @@ fn draw_lobby(frame: &mut Frame) {
     let text = vec![
         Line::from(""),
         Line::from("S: start a race"),
+        Line::from("F: find an opponent"),
         Line::from("Esc / Q: Quit"),
     ];
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
