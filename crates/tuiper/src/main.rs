@@ -67,6 +67,10 @@ fn run_app(
                             if let Some(ref tx) = app.ws_tx {
                                 let _ = tx.send(ClientMessage::LeaveQueue);
                             }
+                            if key.code == KeyCode::Esc {
+                                app.quit = true;
+                                break;
+                            }
                             app.screen = Screen::Lobby;
                         }
                         _ => {}
@@ -75,7 +79,7 @@ fn run_app(
                         let waiting_for_start = app.is_waiting_for_multiplayer_start();
                         if let Some(ref mut t) = app.typing {
                             match key.code {
-                                KeyCode::Char('q') if key.modifiers.contains(KeyModifiers::CONTROL) => {
+                                KeyCode::Esc => {
                                     app.quit = true;
                                     break;
                                 }
