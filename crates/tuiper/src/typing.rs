@@ -190,13 +190,43 @@ impl TypingState {
         true
     }
 
+    pub fn has_unfixed_error(&self) -> bool {
+        let expected: Vec<char> = self.text.chars().collect();
+        let actual: Vec<char> = self.input.chars().collect();
+        let cursor = actual.len();
+        for i in 0..cursor {
+            if actual[i] != expected[i] {
+                return true;
+            }
+        }
+        false
+    }
+
     pub fn char_states(&self) -> Vec<CharState> {
         let expected: Vec<char> = self.text.chars().collect();
         let actual: Vec<char> = self.input.chars().collect();
         let cursor = actual.len();
+        let mut first_error = None;
+        for i in 0..cursor {
+            if actual[i] != expected[i] {
+                first_error = Some(i);
+                break;
+            }
+        }
+
         let mut out = Vec::with_capacity(expected.len());
         for (i, &e) in expected.iter().enumerate() {
-            let state = if i < cursor {
+            let state = if let Some(k) = first_error {
+                if i < k {
+                    CharState::Correct
+                } else if i < cursor {
+                    CharState::Incorrect
+                } else if i == cursor {
+                    CharState::Current
+                } else {
+                    CharState::Untyped
+                }
+            } else if i < cursor {
                 if e == actual[i] {
                     CharState::Correct
                 } else {
