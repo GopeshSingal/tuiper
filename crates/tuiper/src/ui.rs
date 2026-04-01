@@ -80,12 +80,16 @@ fn draw_race(frame: &mut Frame, app: &App) {
         }
 
         let states = t.char_states();
+        let pending_error = t.has_unfixed_error();
         let text_chars: Vec<char> = t.text().chars().collect();
         let mut spans: Vec<Span> = Vec::new();
         for (i, &c) in text_chars.iter().enumerate() {
             let s = match states.get(i).copied().unwrap_or(CharState::Untyped) {
                 CharState::Correct => Span::styled(c.to_string(), Style::default().fg(Color::Green)),
                 CharState::Incorrect => Span::styled(c.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED)),
+                CharState::Current if pending_error => {
+                    Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::Red))
+                }
                 CharState::Current => Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::White)),
                 CharState::Untyped => Span::styled(c.to_string(), Style::default().fg(Color::DarkGray)),
             };
