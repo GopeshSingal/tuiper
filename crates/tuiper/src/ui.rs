@@ -26,7 +26,7 @@ fn draw_lobby(frame: &mut Frame) {
         Line::from(""),
         Line::from("S: start a race"),
         Line::from("F: find an opponent"),
-        Line::from("Esc / Q: Quit"),
+        Line::from("Esc: Quit"),
     ];
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
 }
@@ -38,7 +38,8 @@ fn draw_queue(frame: &mut Frame) {
     frame.render_widget(block, area);
     let text = vec![
         Line::from(""),
-        Line::from("Esc / Q: Quit"),
+        Line::from("Q: leave queue"),
+        Line::from("Esc: Quit"),
     ];
     frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
 }
@@ -110,7 +111,7 @@ fn draw_race(frame: &mut Frame, app: &App) {
     } else if app.is_multi() {
         "Race is in progress"
     } else {
-        "Tab or Esc: restart"
+        "Tab: restart"
     };
     frame.render_widget(Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)), chunks[3]);
 }
@@ -134,7 +135,7 @@ fn draw_results(frame: &mut Frame, app: &App) {
             Line::from(vec![Span::styled("You: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy))]),
             Line::from(vec![Span::styled("Opponent: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy))]),
             Line::from(""),
-            Line::from("Tab or Enter: try again   Esc: quit"),
+            Line::from("Tab or Enter: lobby   Esc: quit"),
         ];
         frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
     } else if let Some(ref r) = app.result() {
