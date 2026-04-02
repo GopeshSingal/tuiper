@@ -51,6 +51,7 @@ async fn main() {
     let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await.unwrap();
     eprintln!("tuiper-server listening on http://0.0.0.0:{}/ws", port);
+    eprintln!("tuiper-server build id: 1");
     axum::serve(listener, app).await.unwrap();
 }
 
