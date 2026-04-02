@@ -14,7 +14,7 @@ type SharedState = Arc<AppState>;
 
 static NEXT_CONN_ID: AtomicU64 = AtomicU64::new(0);
 
-const OUTBOUND_CHANNEL_CAPACITY: usize = 32;
+const OUTBOUND_CHANNEL_CAPACITY: usize = 256;
 
 struct AppState {
     queues: RwLock<HashMap<u32, Vec<u64>>>,
@@ -63,7 +63,6 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
     let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
     state.connection_txs.write().await.insert(conn_id, tx.clone());
     let mut queue_key: Option<u32> = None;
-    let mut race_id: Option<String> = None;
 
     loop {
         tokio::select! {
@@ -92,22 +91,22 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         }
                     }
                     ClientMessage::RaceProgress { wpm, accuracy: _, chars_typed } => {
-                        if race_id.is_none() {
+                        let current_rid = {
                             let races = state.races.read().await;
-                            for (rid, (uid1, uid2)) in races.iter() {
-                                if *uid1 == conn_id || *uid2 == conn_id {
-                                    race_id = Some(rid.clone());
-                                    break;
-                                }
-                            }
-                        }
-                        if let Some(ref rid) = race_id {
+                            races
+                                .iter()
+                                .find(|(_, (uid1, uid2))| *uid1 == conn_id || *uid2 == conn_id)
+                                .map(|(rid, _)| rid.clone())
+                        };
+                        if let Some(ref rid) = current_rid {
                             let races = state.races.read().await;
                             let txs = state.connection_txs.read().await;
                             if let Some((uid1, uid2)) = races.get(rid) {
                                 let opp_id = if *uid1 == conn_id { *uid2 } else { *uid1 };
                                 if let Some(opp_tx) = txs.get(&opp_id) {
-                                    let _ = opp_tx.try_send(ServerMessage::OpponentProgress { wpm, chars_typed });
+                                    let _ = opp_tx
+                                        .send(ServerMessage::OpponentProgress { wpm, chars_typed })
+                                        .await;
                                 }
                             }
                         }
@@ -132,7 +131,6 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                         }
                         drop(races);
                         if let (Some(rid), Some(idx)) = (found_rid, player_idx) {
-                            race_id = Some(rid.clone());
                             let mut results = state.race_results.write().await;
                             let entry = results.entry(rid.clone()).or_insert((None, None));
                             if idx == 0 {
@@ -208,7 +206,17 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
         }
     }
 
-    if let Some(rid) = race_id {
+    let mut disconnect_rid: Option<String> = None;
+    {
+        let races = state.races.read().await;
+        for (rid, (uid1, uid2)) in races.iter() {
+            if *uid1 == conn_id || *uid2 == conn_id {
+                disconnect_rid = Some(rid.clone());
+                break;
+            }
+        }
+    }
+    if let Some(rid) = disconnect_rid {
         state.races.write().await.remove(&rid);
         state.race_results.write().await.remove(&rid);
     }
@@ -251,11 +259,12 @@ async fn try_match(state: &SharedState, key: u32) {
         seed,
         start_at_unix_ms,
     };
-    let _ = tx1.send(start1.clone()).await;
-    let _ = tx2.send(start2.clone()).await;
 
     state.races.write().await.insert(race_id.clone(), (uid1, uid2));
     state.race_results.write().await.insert(race_id, (None, None));
+
+    let _ = tx1.send(start1).await;
+    let _ = tx2.send(start2).await;
 }
 
 async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2: PlayerResult) {
