@@ -113,8 +113,12 @@ fn run_app(
                         }
                         KeyCode::Tab | KeyCode::Enter => {
                             let value = 30;
-                            if let Some(ref tx) = app.ws_tx {
-                                let _ = tx.send(ClientMessage::JoinQueue { value });
+                            if app.race_results.is_some() {
+                                if let Some(ref tx) = app.ws_tx {
+                                    let _ = tx.send(ClientMessage::JoinQueue { value });
+                                }
+                            } else {
+                                app.start_race(value);
                             }
                         }
                         _ => {}

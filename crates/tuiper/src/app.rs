@@ -86,6 +86,7 @@ impl App {
 
     pub fn start_race(&mut self, value: u32) {
         self.result = None;
+        self.race_results = None;
         self.screen = Screen::Race;
         self.multiplayer_start_at_unix_ms = None;
 
