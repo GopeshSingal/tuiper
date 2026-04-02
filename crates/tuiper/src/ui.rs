@@ -144,14 +144,14 @@ fn draw_results(frame: &mut Frame, app: &App) {
     frame.render_widget(block, area);
     
     if let Some(ref res) = app.race_results {
-        let winner_str = match &res.winner {
-            Some(protocols::Winner::Me) => "You won :)",
-            Some(protocols::Winner::Opponent) => "You lost :(",
-            None => "",
+        let winner_span = match &res.winner {
+            Some(protocols::Winner::Me) => Span::styled("You won :)", Style::default().fg(Color::Green)),
+            Some(protocols::Winner::Opponent) => Span::styled("You lost :(", Style::default().fg(Color::Red)),
+            None => Span::raw(""),
         };
         let text = vec![
             Line::from(""),
-            Line::from(Span::styled(winner_str, Style::default().fg(Color::Green))),
+            Line::from(winner_span),
             Line::from(""),
             Line::from(vec![Span::styled("You: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy))]),
             Line::from(vec![Span::styled("Opponent: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy))]),
