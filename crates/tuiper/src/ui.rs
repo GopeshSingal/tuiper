@@ -135,7 +135,7 @@ fn draw_results(frame: &mut Frame, app: &App) {
             Line::from(vec![Span::styled("You: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy))]),
             Line::from(vec![Span::styled("Opponent: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy))]),
             Line::from(""),
-            Line::from("Tab or Enter: lobby   Esc: quit"),
+            Line::from("Tab or Enter: race again  Q: lobby"),
         ];
         frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
     } else if let Some(ref r) = app.result() {
@@ -147,7 +147,7 @@ fn draw_results(frame: &mut Frame, app: &App) {
             Line::from(vec![Span::styled("Consistency: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}%", r.consistency))]),
             Line::from(vec![Span::styled("Time: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.1}", r.duration_secs))]),
             Line::from(""),
-            Line::from("Tab or Enter: try again    Esc: quit"),
+            Line::from("Tab or Enter: try again    Q: lobby"),
         ];
         frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
     } else {

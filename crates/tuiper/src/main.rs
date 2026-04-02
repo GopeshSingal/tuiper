@@ -102,14 +102,20 @@ fn run_app(
                         }
                     }
                     Screen::Results => match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => {
+                        KeyCode::Char('q') => {
+                            app.result = None;
+                            app.race_results = None;
+                            app.screen = Screen::Lobby;
+                        }
+                        KeyCode::Esc => {
                             app.quit = true;
                             break;
                         }
                         KeyCode::Tab | KeyCode::Enter => {
-                            app.result = None;
-                            app.race_results = None;
-                            app.screen = Screen::Lobby;
+                            let value = 30;
+                            if let Some(ref tx) = app.ws_tx {
+                                let _ = tx.send(ClientMessage::JoinQueue { value });
+                            }
                         }
                         _ => {}
                     },
