@@ -83,18 +83,39 @@ fn draw_race(frame: &mut Frame, app: &App) {
         let states = t.char_states();
         let pending_error = t.has_unfixed_error();
         let text_chars: Vec<char> = t.text().chars().collect();
+        let opponent_cursor_idx =
+            if app.is_multi() && !app.is_waiting_for_multiplayer_start() {
+                let oc = app.opponent_chars as usize;
+                if oc < text_chars.len() {
+                    Some(oc)
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
         let mut spans: Vec<Span> = Vec::new();
         for (i, &c) in text_chars.iter().enumerate() {
-            let s = match states.get(i).copied().unwrap_or(CharState::Untyped) {
-                CharState::Correct => Span::styled(c.to_string(), Style::default().fg(Color::Green)),
-                CharState::Incorrect => Span::styled(c.to_string(), Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED)),
-                CharState::Current if pending_error => {
-                    Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::Red))
-                }
-                CharState::Current => Span::styled(c.to_string(), Style::default().bg(Color::DarkGray).fg(Color::White)),
-                CharState::Untyped => Span::styled(c.to_string(), Style::default().fg(Color::DarkGray)),
+            let state = states.get(i).copied().unwrap_or(CharState::Untyped);
+            let mut style = match state {
+                CharState::Correct => Style::default().fg(Color::Green),
+                CharState::Incorrect => Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED),
+                CharState::Current if pending_error => Style::default().bg(Color::DarkGray).fg(Color::Red),
+                CharState::Current => Style::default().bg(Color::DarkGray).fg(Color::White),
+                CharState::Untyped => Style::default().fg(Color::DarkGray),
             };
-            spans.push(s);
+            if opponent_cursor_idx == Some(i) {
+                if matches!(state, CharState::Current) {
+                    style = if pending_error {
+                        Style::default().bg(Color::LightMagenta).fg(Color::Red)
+                    } else {
+                        Style::default().bg(Color::LightMagenta).fg(Color::White)
+                    };
+                } else {
+                    style = style.bg(Color::Magenta);
+                }
+            }
+            spans.push(Span::styled(c.to_string(), style));
         }
         let line = Line::from(spans);
         let block = Block::default().borders(Borders::ALL).title("Type the given text!");
