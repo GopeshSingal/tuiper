@@ -77,6 +77,7 @@ fn run_app(
                     },
                     Screen::Race => {
                         let waiting_for_start = app.is_waiting_for_multiplayer_start();
+                        let is_multi = app.is_multi();
                         if let Some(ref mut t) = app.typing {
                             match key.code {
                                 KeyCode::Esc => {
@@ -93,9 +94,11 @@ fn run_app(
                                         t.type_char(c);
                                     }
                                 }
-                                KeyCode::Tab => {
-                                    let value = t.value();
-                                    app.start_race(value);
+                                KeyCode::Tab | KeyCode::Enter => {
+                                    if !is_multi {
+                                        let value = t.value();
+                                        app.start_race(value);
+                                    }
                                 }
                                 _ => {}
                             }
