@@ -8,7 +8,16 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
+const APP_BG: Color = Color::Rgb(16, 16, 16);
+
+fn base_style() -> Style {
+    Style::default().bg(APP_BG)
+}
+
 pub fn draw(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    frame.render_widget(Block::default().style(base_style()), area);
+
     match app.screen {
         Screen::Lobby => draw_lobby(frame),
         Screen::Queue => draw_queue(frame),
@@ -19,7 +28,10 @@ pub fn draw(frame: &mut Frame, app: &App) {
 
 fn draw_lobby(frame: &mut Frame) {
     let area = frame.area();
-    let block = Block::default().borders(Borders::ALL).title("Tuiper");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Tuiper")
+        .style(base_style());
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let text = vec![
@@ -28,12 +40,20 @@ fn draw_lobby(frame: &mut Frame) {
         Line::from("F: find an opponent"),
         Line::from("Esc: Quit"),
     ];
-    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+    frame.render_widget(
+        Paragraph::new(text)
+            .wrap(Wrap { trim: false })
+            .style(base_style()),
+        inner,
+    );
 }
 
 fn draw_queue(frame: &mut Frame) {
     let area = frame.area();
-    let block = Block::default().borders(Borders::ALL).title("Finding opponent");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Finding opponent")
+        .style(base_style());
     let inner = block.inner(area);
     frame.render_widget(block, area);
     let text = vec![
@@ -41,7 +61,12 @@ fn draw_queue(frame: &mut Frame) {
         Line::from("Q: leave queue"),
         Line::from("Esc: Quit"),
     ];
-    frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+    frame.render_widget(
+        Paragraph::new(text)
+            .wrap(Wrap { trim: false })
+            .style(base_style()),
+        inner,
+    );
 }
 
 fn draw_race(frame: &mut Frame, app: &App) {
@@ -67,17 +92,26 @@ fn draw_race(frame: &mut Frame, app: &App) {
             t.consistency(),
             header_str
         );
-        frame.render_widget(Paragraph::new(stats).style(Style::default().fg(Color::Cyan)), chunks[0]);
+        frame.render_widget(
+            Paragraph::new(stats).style(base_style().fg(Color::Cyan)),
+            chunks[0],
+        );
 
         if app.is_waiting_for_multiplayer_start() {
             let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
             let waiting = format!("Starting in {}s...", countdown);
-            frame.render_widget(Paragraph::new(waiting).style(Style::default().fg(Color::Yellow)), chunks[1]);
+            frame.render_widget(
+                Paragraph::new(waiting).style(base_style().fg(Color::Yellow)),
+                chunks[1],
+            );
         } else if app.is_multi() {
             let opponent_stats = format!("Opponent WPM: {:.0}, Opponent Chars: {}", app.opponent_wpm, app.opponent_chars);
-            frame.render_widget(Paragraph::new(opponent_stats).style(Style::default().fg(Color::Yellow)), chunks[1]);
+            frame.render_widget(
+                Paragraph::new(opponent_stats).style(base_style().fg(Color::Yellow)),
+                chunks[1],
+            );
         } else {
-            frame.render_widget(Paragraph::new(""), chunks[1]);
+            frame.render_widget(Paragraph::new("").style(base_style()), chunks[1]);
         }
 
         let states = t.char_states();
@@ -98,18 +132,20 @@ fn draw_race(frame: &mut Frame, app: &App) {
         for (i, &c) in text_chars.iter().enumerate() {
             let state = states.get(i).copied().unwrap_or(CharState::Untyped);
             let mut style = match state {
-                CharState::Correct => Style::default().fg(Color::Green),
-                CharState::Incorrect => Style::default().fg(Color::Red).add_modifier(Modifier::UNDERLINED),
-                CharState::Current if pending_error => Style::default().bg(Color::DarkGray).fg(Color::Red),
-                CharState::Current => Style::default().bg(Color::DarkGray).fg(Color::White),
-                CharState::Untyped => Style::default().fg(Color::DarkGray),
+                CharState::Correct => base_style().fg(Color::Green),
+                CharState::Incorrect => base_style()
+                    .fg(Color::Red)
+                    .add_modifier(Modifier::UNDERLINED),
+                CharState::Current if pending_error => base_style().bg(Color::DarkGray).fg(Color::Red),
+                CharState::Current => base_style().bg(Color::DarkGray).fg(Color::White),
+                CharState::Untyped => base_style().fg(Color::DarkGray),
             };
             if opponent_cursor_idx == Some(i) {
                 if matches!(state, CharState::Current) {
                     style = if pending_error {
-                        Style::default().bg(Color::LightMagenta).fg(Color::Red)
+                        base_style().bg(Color::LightMagenta).fg(Color::Red)
                     } else {
-                        Style::default().bg(Color::LightMagenta).fg(Color::White)
+                        base_style().bg(Color::LightMagenta).fg(Color::White)
                     };
                 } else {
                     style = style.bg(Color::Magenta);
@@ -118,12 +154,24 @@ fn draw_race(frame: &mut Frame, app: &App) {
             spans.push(Span::styled(c.to_string(), style));
         }
         let line = Line::from(spans);
-        let block = Block::default().borders(Borders::ALL).title("Type the given text!");
+        let block = Block::default()
+            .borders(Borders::ALL)
+            .title("Type the given text!")
+            .style(base_style());
         let inner = block.inner(chunks[2]);
         frame.render_widget(block, chunks[2]);
-        frame.render_widget(Paragraph::new(line).wrap(Wrap { trim: false }), inner);
+        frame.render_widget(
+            Paragraph::new(line)
+                .wrap(Wrap { trim: false })
+                .style(base_style()),
+            inner,
+        );
     } else {
-        let msg = Paragraph::new("Loading...").block(Block::default().borders(Borders::ALL));
+        let msg = Paragraph::new("Loading...").block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(base_style()),
+        );
         frame.render_widget(msg, chunks[2]);
     }
 
@@ -134,15 +182,21 @@ fn draw_race(frame: &mut Frame, app: &App) {
     } else {
         "Tab: restart"
     };
-    frame.render_widget(Paragraph::new(hint).style(Style::default().fg(Color::DarkGray)), chunks[3]);
+    frame.render_widget(
+        Paragraph::new(hint).style(base_style().fg(Color::DarkGray)),
+        chunks[3],
+    );
 }
 
 fn draw_results(frame: &mut Frame, app: &App) {
     let area = frame.area();
-    let block = Block::default().borders(Borders::ALL).title("Results ");
+    let block = Block::default()
+        .borders(Borders::ALL)
+        .title("Results ")
+        .style(base_style());
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    
+
     if let Some(ref res) = app.race_results {
         let winner_str = match &res.winner {
             Some(protocols::Winner::Me) => "You won :)",
@@ -151,27 +205,73 @@ fn draw_results(frame: &mut Frame, app: &App) {
         };
         let text = vec![
             Line::from(""),
-            Line::from(Span::styled(winner_str, Style::default().fg(Color::Green))),
+            Line::from(Span::styled(winner_str, base_style().fg(Color::Green))),
             Line::from(""),
-            Line::from(vec![Span::styled("You: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy))]),
-            Line::from(vec![Span::styled("Opponent: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy))]),
+            Line::from(vec![
+                Span::styled("You: ", base_style().fg(Color::Cyan)),
+                Span::styled(
+                    format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy),
+                    base_style(),
+                ),
+            ]),
+            Line::from(vec![
+                Span::styled("Opponent: ", base_style().fg(Color::Cyan)),
+                Span::styled(
+                    format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy),
+                    base_style(),
+                ),
+            ]),
             Line::from(""),
-            Line::from("Tab or Enter: race again  Q: lobby"),
+            Line::from(Span::styled(
+                "Tab or Enter: race again  Q: lobby",
+                base_style(),
+            )),
         ];
-        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+        frame.render_widget(
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .style(base_style()),
+            inner,
+        );
     } else if let Some(ref r) = app.result() {
         let text = vec![
             Line::from(""),
-            Line::from(vec![Span::styled("WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.wpm))]),
-            Line::from(vec![Span::styled("Raw WPM: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}", r.raw_wpm))]),
-            Line::from(vec![Span::styled("Accuracy: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.1}%", r.accuracy))]),
-            Line::from(vec![Span::styled("Consistency: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.0}%", r.consistency))]),
-            Line::from(vec![Span::styled("Time: ", Style::default().fg(Color::Cyan)), Span::raw(format!("{:.1}", r.duration_secs))]),
+            Line::from(vec![
+                Span::styled("WPM: ", base_style().fg(Color::Cyan)),
+                Span::styled(format!("{:.0}", r.wpm), base_style()),
+            ]),
+            Line::from(vec![
+                Span::styled("Raw WPM: ", base_style().fg(Color::Cyan)),
+                Span::styled(format!("{:.0}", r.raw_wpm), base_style()),
+            ]),
+            Line::from(vec![
+                Span::styled("Accuracy: ", base_style().fg(Color::Cyan)),
+                Span::styled(format!("{:.1}%", r.accuracy), base_style()),
+            ]),
+            Line::from(vec![
+                Span::styled("Consistency: ", base_style().fg(Color::Cyan)),
+                Span::styled(format!("{:.0}%", r.consistency), base_style()),
+            ]),
+            Line::from(vec![
+                Span::styled("Time: ", base_style().fg(Color::Cyan)),
+                Span::styled(format!("{:.1}", r.duration_secs), base_style()),
+            ]),
             Line::from(""),
-            Line::from("Tab or Enter: try again    Q: lobby"),
+            Line::from(Span::styled(
+                "Tab or Enter: try again    Q: lobby",
+                base_style(),
+            )),
         ];
-        frame.render_widget(Paragraph::new(text).wrap(Wrap { trim: false }), inner);
+        frame.render_widget(
+            Paragraph::new(text)
+                .wrap(Wrap { trim: false })
+                .style(base_style()),
+            inner,
+        );
     } else {
-        frame.render_widget(Paragraph::new("No results to display!"), inner);
+        frame.render_widget(
+            Paragraph::new("No results to display!").style(base_style()),
+            inner,
+        );
     }
 }
