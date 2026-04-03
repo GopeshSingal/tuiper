@@ -30,6 +30,7 @@ pub struct App {
     
     // multiplayer
     pub ws_tx: Option<mpsc::Sender<ClientMessage>>,
+    multiplayer_race: bool,
     pub opponent_wpm: f64,
     pub opponent_chars: u32,
     pub last_progress_sent: f64,
@@ -51,6 +52,7 @@ impl App {
 
             // multiplayer
             ws_tx: None,
+            multiplayer_race: false,
             opponent_wpm: 0.0,
             opponent_chars: 0,
             last_progress_sent: 0.0,
@@ -68,10 +70,13 @@ impl App {
                 self.start_multiplayer(seed, value, start_at_unix_ms);
             }
             OpponentProgress { wpm, chars_typed } => {
-                self.opponent_wpm = wpm;
-                self.opponent_chars = chars_typed;
+                if self.multiplayer_race {
+                    self.opponent_wpm = wpm;
+                    self.opponent_chars = chars_typed;
+                }
             }
             RaceEnd { results } => {
+                self.multiplayer_race = false;
                 self.race_results = Some(results);
                 self.typing = None;
                 self.result = None;
@@ -79,12 +84,15 @@ impl App {
                 self.screen = Screen::Results;
             }
             Error { message: _ } => {
+                self.multiplayer_race = false;
+                self.disconnect_websocket();
                 self.screen = Screen::Lobby;
             }
         }
     }
 
     pub fn start_race(&mut self, value: u32) {
+        self.multiplayer_race = false;
         self.result = None;
         self.race_results = None;
         self.screen = Screen::Race;
@@ -100,6 +108,7 @@ impl App {
     }
 
     pub fn start_multiplayer(&mut self, seed: u64, value: u32, start_at_unix_ms: u64) {
+        self.multiplayer_race = true;
         self.result = None;
         self.race_results = None;
         self.opponent_wpm = 0.0;
@@ -141,28 +150,32 @@ impl App {
                 }
             }
             
-            // Send progress over WebSocket to opponent
             let elapsed = t.elapsed_secs();
-            if let Some(ref tx) = self.ws_tx {
-                if elapsed - self.last_progress_sent >= 0.3 {
-                    let _ = tx.send(ClientMessage::RaceProgress {
-                        wpm: t.wpm(),
-                        accuracy: t.accuracy(),
-                        chars_typed: t.cursor() as u32,
-                    });
-                    self.last_progress_sent = elapsed;
+            if self.multiplayer_race {
+                if let Some(ref tx) = self.ws_tx {
+                    if elapsed - self.last_progress_sent >= 0.3 {
+                        let _ = tx.send(ClientMessage::RaceProgress {
+                            wpm: t.wpm(),
+                            accuracy: t.accuracy(),
+                            chars_typed: t.cursor() as u32,
+                        });
+                        self.last_progress_sent = elapsed;
+                    }
                 }
             }
 
             if t.is_finished() {
-                if let Some(ref tx) = self.ws_tx {
-                    let stats = t.final_stats();
-                    let _ = tx.send(ClientMessage::RaceFinished {
-                        wpm: stats.wpm,
-                        accuracy: stats.accuracy,
-                        consistency: stats.consistency,
-                        chars_typed: stats.chars_typed,
-                    });
+                if self.multiplayer_race {
+                    if let Some(ref tx) = self.ws_tx {
+                        let stats = t.final_stats();
+                        let _ = tx.send(ClientMessage::RaceFinished {
+                            wpm: stats.wpm,
+                            accuracy: stats.accuracy,
+                            consistency: stats.consistency,
+                            chars_typed: stats.chars_typed,
+                        });
+                    }
+                    self.multiplayer_race = false;
                 }
                 self.result = Some(t.final_stats());
                 self.typing = None;
@@ -174,6 +187,10 @@ impl App {
         }
     }
 
+    pub fn disconnect_websocket(&mut self) {
+        self.ws_tx = None;
+    }
+
     pub fn typing(&self) -> Option<&TypingState> {
         self.typing.as_ref()
     }
@@ -183,7 +200,7 @@ impl App {
     }
 
     pub fn is_multi(&self) -> bool {
-        self.ws_tx.is_some() && self.screen == Screen::Race
+        self.multiplayer_race && self.screen == Screen::Race
     }
 
     pub fn is_waiting_for_multiplayer_start(&self) -> bool {
