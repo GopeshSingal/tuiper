@@ -6,7 +6,7 @@ mod words;
 
 use app::{App, Screen};
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::io;
@@ -24,7 +24,7 @@ fn ws_url() -> String {
 fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
-    main_tx_opt: &mut Option<mpsc::Sender<ServerMessage>>,
+    main_tx: &mpsc::Sender<ServerMessage>,
     main_rx: &mpsc::Receiver<ServerMessage>,
 ) -> io::Result<()> {
     loop {
@@ -53,10 +53,10 @@ fn run_app(
                             let value = 30;
                             if let Some(ref tx) = app.ws_tx {
                                 let _ = tx.send(ClientMessage::JoinQueue { value });
-                            } else if let Some(main_tx) = main_tx_opt.take() {
+                            } else {
                                 let (app_tx, app_rx) = mpsc::channel();
                                 app.ws_tx = Some(app_tx.clone());
-                                network::run_ws_thread(ws_url(), main_tx, app_rx);
+                                network::run_ws_thread(ws_url(), main_tx.clone(), app_rx);
                                 let _ = app_tx.send(ClientMessage::JoinQueue { value });
                             }
                         }
@@ -71,6 +71,7 @@ fn run_app(
                                 app.quit = true;
                                 break;
                             }
+                            app.disconnect_websocket();
                             app.screen = Screen::Lobby;
                         }
                         _ => {}
@@ -108,6 +109,7 @@ fn run_app(
                         KeyCode::Char('q') => {
                             app.result = None;
                             app.race_results = None;
+                            app.disconnect_websocket();
                             app.screen = Screen::Lobby;
                         }
                         KeyCode::Esc => {
@@ -119,6 +121,11 @@ fn run_app(
                             if app.race_results.is_some() {
                                 if let Some(ref tx) = app.ws_tx {
                                     let _ = tx.send(ClientMessage::JoinQueue { value });
+                                } else {
+                                    let (app_tx, app_rx) = mpsc::channel();
+                                    app.ws_tx = Some(app_tx.clone());
+                                    network::run_ws_thread(ws_url(), main_tx.clone(), app_rx);
+                                    let _ = app_tx.send(ClientMessage::JoinQueue { value });
                                 }
                             } else {
                                 app.start_race(value);
@@ -141,11 +148,10 @@ fn main() -> io::Result<()> {
     let mut terminal = Terminal::new(backend)?;
 
     let (main_tx, main_rx) = mpsc::channel();
-    let mut main_tx_opt = Some(main_tx);
 
     let mut app = App::new();
 
-    let _ = run_app(&mut terminal, &mut app, &mut main_tx_opt, &main_rx);
+    let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx);
 
     crossterm::execute!(terminal.backend_mut(), crossterm::terminal::LeaveAlternateScreen, crossterm::event::DisableMouseCapture)?;
     crossterm::terminal::disable_raw_mode()?;
