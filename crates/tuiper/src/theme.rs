@@ -98,11 +98,42 @@ mod color_map_serde {
 
     pub fn serialize<S>(map: &HashMap<ThemeField, Color>, serializer: S) -> Result<S::Ok, S::Error>
     where S: Serializer {
-        // TODO: implement this
+        use serde::ser::SerializeMap;
+        let mut state = serializer.serialize_map(Some(map.len()))?;
+        for (k, v) in map {
+            state.serialize_entry(&format!("{:?}", k), &color_to_hex(*v))?;
+        }
+        state.end()
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<ThemeField, Color>, D::Error>
     where D: Deserializer<'de> {
-        //TODO: implement this
+        let map_raw = HashMap::<String, String>::deserialize(deserializer)?;
+        let mut map = HashMap::new();
+        for field in ThemeField::iter() {
+            if let Some(hex) = map_raw.get(&format!("{:?}", field)) {
+                map.insert(field, hex_to_color(hex));
+            }
+        }
+        Ok(map)
+    }
+
+    fn color_to_hex(c: Color) -> String {
+        if let Color::Rgb(r, g, b) = c {
+            format!("#{:02x}{:02x}{:02x}", r, g, b)
+        } else {
+            "#ffffff".to_string()
+        }
+    }
+
+    fn hex_to_color(s: &str) -> Color {
+        if s.starts_with('#') && s.len() == 7 {
+            let r = u8::from_str_radix(&s[1..3], 16).unwrap_or(255);
+            let g = u8::from_str_radix(&s[3..5], 16).unwrap_or(255);
+            let b = u8::from_str_radix(&s[5..7], 16).unwrap_or(255);
+            Color::Rgb(r, g, b)
+        } else {
+            Color::Rgb(255, 255, 255)
+        }
     }
 }
