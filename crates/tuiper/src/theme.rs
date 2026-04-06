@@ -3,8 +3,10 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
+use dirs::{config_dir};
 use ratatui::style::{Color};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde_json::{from_str, to_string_pretty};
 use strum::{Display, EnumIter, IntoEnumIterator};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter, Display)]
@@ -65,6 +67,30 @@ impl Theme {
     pub fn set(&mut self, field: ThemeField, c: Color) {
         self.fields.insert(field, c);
     }
+}
+
+pub fn theme_config_path() -> Option<PathBuf> {
+    config_dir().map(|mut p| {
+        p.push("tuiper/theme_config.json");
+        p
+    })
+}
+
+pub fn load() -> Theme {
+    theme_config_path()
+        .and_then(|path| fs::read_to_string(path).ok())
+        .and_then(|data_str| from_str(&data_str).ok())
+        .unwrap_or_else(Theme::default)
+}
+
+pub fn save(theme: &Theme) -> io::Result<()> {
+    let Some(path) = theme_config_path() else { return Ok(()); };
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir)?;
+    }
+    let json = to_string_pretty(theme)
+        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    fs::write(path, json)
 }
 
 mod color_map_serde {
