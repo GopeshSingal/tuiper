@@ -1,5 +1,6 @@
 mod app;
 mod network;
+mod theme;
 mod typing;
 mod ui;
 mod words;
