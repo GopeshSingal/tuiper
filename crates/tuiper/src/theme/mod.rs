@@ -1,3 +1,5 @@
+mod constants;
+
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -8,6 +10,8 @@ use ratatui::style::{Color};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_str, to_string_pretty};
 use strum::{Display, EnumIter, IntoEnumIterator};
+
+use constants::TAILWIND_GRID;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter, Display)]
 pub enum ThemeField {
@@ -66,6 +70,30 @@ impl Theme {
 
     pub fn set(&mut self, field: ThemeField, c: Color) {
         self.fields.insert(field, c);
+    }
+
+    pub fn cycle_palette(&mut self, field: ThemeField, delta: isize) {
+        let (r, c) = self.get_grid_pos(field).unwrap_or((0, 5));
+        let next_r = (r as isize + delta).rem_euclid(22) as usize;
+
+        self.set(field, TAILWIND_GRID[next_r][5]);
+    }
+
+    pub fn cycle_shade(&mut self, field: ThemeField, delta: isize) {
+        let (r, c) = self.get_grid_pos(field).unwrap_or((0, 5));
+        let next_c = (c as isize + delta).rem_euclid(11) as usize;
+
+        self.set(field, TAILWIND_GRID[r][next_c]);
+    }
+
+    fn get_grid_pos(&self, field: ThemeField) -> Option<(usize, usize)> {
+        let curr = self.get(field);
+        for (r_idx, row) in TAILWIND_GRID.iter().enumerate() {
+            if let Some(c_idx) = row.iter().position(|&c| c == curr) {
+                return Some((r_idx, c_idx));
+            }
+        }
+        None
     }
 }
 
