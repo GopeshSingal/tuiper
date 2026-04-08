@@ -176,6 +176,17 @@ fn run_app(
                                     }
                                 }
                             }
+                            KeyCode::BackTab => {
+                                let field = fields[app.theme_edit_row];
+                                match app.theme_edit_col {
+                                    ThemeEditColumn::Palette => {
+                                        app.theme.cycle_palette(field, -1);
+                                    }
+                                    ThemeEditColumn::Shade => {
+                                        app.theme.cycle_shade(field, -1);
+                                    }
+                                }
+                            }
                             KeyCode::Esc => {
                                 app.quit = true;
                                 break;
