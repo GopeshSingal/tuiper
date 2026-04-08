@@ -136,6 +136,10 @@ impl Theme {
         SHADE_NAMES[c]
     }
 
+    pub fn reset(&mut self) {
+        *self = Self::default();
+    }
+
     fn get_grid_pos(&self, field: ThemeField) -> Option<(usize, usize)> {
         let curr = self.get(field);
         for (r_idx, row) in TAILWIND_GRID.iter().enumerate() {
