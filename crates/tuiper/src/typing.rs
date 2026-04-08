@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use crate::app::RaceMode;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharState {
     Untyped,
@@ -70,7 +72,7 @@ impl TypingState {
     pub fn value(&self) -> u32 {
         self.value
     }
-    
+
     pub fn append_text(&mut self, more:&str) {
         if more.is_empty() {
             return;
@@ -80,14 +82,19 @@ impl TypingState {
         }
         self.text.push_str(more);
     }
-    
-    pub fn is_finished(&self) -> bool {
+
+    pub fn is_finished(&self, mode: RaceMode) -> bool {
         let Some(start) = self.start_time else { return false };
         let elapsed = start.elapsed().as_secs_f64();
-        
-        elapsed >= self.value as f64
+        let cursor = self.cursor();
+        let text_len = self.text.chars().count();
+
+        match mode {
+            RaceMode::Time => elapsed >= self.value as f64,
+            RaceMode::Words => !self.has_unfixed_error() && cursor >= text_len,
+        }
     }
-    
+
     pub fn correct_chars(&self) -> usize {
         let expected: Vec<char> = self.text.chars().collect();
         let actual: Vec<char> = self.input.chars().collect();
