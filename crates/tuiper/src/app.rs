@@ -1,3 +1,4 @@
+use crate::theme::{self, Theme, ThemeEditColumn};
 use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk};
 
@@ -13,6 +14,7 @@ pub enum Screen {
     Queue,
     Race,
     Results,
+    Config,
 }
 
 const REFILL_THRESHOLD: usize = 10;
@@ -23,11 +25,11 @@ pub struct App {
     pub result: Option<TypingStats>,
 
     pub quit: bool,
-    
+
     // Streaming words
     pub seed: Option<u64>,
     pub words_so_far: u32,
-    
+
     // multiplayer
     pub ws_tx: Option<mpsc::Sender<ClientMessage>>,
     multiplayer_race: bool,
@@ -36,6 +38,11 @@ pub struct App {
     pub last_progress_sent: f64,
     pub race_results: Option<RaceResults>,
     pub multiplayer_start_at_unix_ms: Option<u64>,
+
+    // theme config
+    pub theme: Theme,
+    pub theme_edit_row: usize,
+    pub theme_edit_col: ThemeEditColumn,
 }
 
 impl App {
@@ -58,6 +65,11 @@ impl App {
             last_progress_sent: 0.0,
             race_results: None,
             multiplayer_start_at_unix_ms: None,
+
+            // theme config
+            theme: theme::load(),
+            theme_edit_row: 0,
+            theme_edit_col: ThemeEditColumn::default(),
         }
     }
 
