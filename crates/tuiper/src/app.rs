@@ -85,6 +85,20 @@ impl App {
         }
     }
 
+    pub fn cycle_mode(&mut self, delta: i32) {
+        if delta > 0 {
+            self.mode = match self.mode {
+                RaceMode::Time => RaceMode::Words,
+                RaceMode::Words => RaceMode::Time
+            }
+        } else {
+            self.mode = match self.mode {
+                RaceMode::Time => RaceMode::Words,
+                RaceMode::Words => RaceMode::Time
+            }
+        }
+    }
+
     pub fn handle_server_message(&mut self, msg: ServerMessage) {
         match msg {
             Queue => {

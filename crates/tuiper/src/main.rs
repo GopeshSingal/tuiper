@@ -68,6 +68,12 @@ fn run_app(
                             app.theme_edit_col = ThemeEditColumn::default();
                             app.screen = Screen::Config;
                         }
+                        KeyCode::Tab => {
+                            app.cycle_mode(1);
+                        },
+                        KeyCode::BackTab => {
+                            app.cycle_mode(-1);
+                        }
                         _ => {}
                     },
                     Screen::Queue => match key.code {
