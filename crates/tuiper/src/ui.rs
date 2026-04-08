@@ -9,8 +9,6 @@ use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
 use strum::IntoEnumIterator;
 
-const APP_BG: Color = Color::Rgb(16, 16, 16);
-
 fn base_style(theme: &Theme) -> Style {
     Style::default().bg(theme.get(ThemeField::WindowBg))
 }
@@ -435,7 +433,7 @@ fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
     let hints = vec![
         Line::from(""),
         Line::from(Span::styled(
-            "Use arrow keys to navigate  Tab: cycle palette or shade   Q: save & back",
+            "Use arrow keys to navigate  Tab: cycle palette or shade   R: reset   Q: save & back",
             base_style(theme).fg(Color::DarkGray),
         )),
     ];
