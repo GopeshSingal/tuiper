@@ -15,6 +15,67 @@ fn base_style(theme: &Theme) -> Style {
     Style::default().bg(theme.get(ThemeField::WindowBg))
 }
 
+fn typing_char_style(
+    theme: &Theme,
+    state: CharState,
+    pending_error: bool,
+    opponent_cursor_idx: Option<usize>,
+    i: usize,
+) -> Style {
+    let opp = opponent_cursor_idx == Some(i);
+    if opp && matches!(state, CharState::Current) {
+        return if pending_error {
+            base_style(theme)
+                .bg(theme.get(ThemeField::OppCursorBg))
+                .fg(theme.get(ThemeField::TypedIncorrect))
+        } else {
+            base_style(theme)
+                .bg(theme.get(ThemeField::OppCursorBg))
+                .fg(theme.get(ThemeField::OppCursorFg))
+        };
+    }
+
+    let mut style = match state {
+        CharState::Correct => base_style(theme).fg(theme.get(ThemeField::TypedCorrect)),
+        CharState::Incorrect => base_style(theme)
+            .fg(theme.get(ThemeField::TypedIncorrect))
+            .add_modifier(Modifier::UNDERLINED),
+        CharState::Current if pending_error => base_style(theme)
+            .bg(theme.get(ThemeField::CursorBg))
+            .fg(theme.get(ThemeField::TypedIncorrect)),
+        CharState::Current => base_style(theme)
+            .bg(theme.get(ThemeField::CursorBg))
+            .fg(theme.get(ThemeField::CursorFg)),
+        CharState::Untyped => base_style(theme).fg(theme.get(ThemeField::Untyped)),
+    };
+
+    if opp {
+        style = style
+            .bg(theme.get(ThemeField::OppCursorBg))
+            .fg(theme.get(ThemeField::OppCursorFg));
+    }
+    style
+}
+
+fn line_from_typing(
+    theme: &Theme,
+    indexed_chars: impl Iterator<Item = (usize, char)>,
+    at: impl Fn(usize) -> (CharState, bool),
+    opponent_cursor_idx: Option<usize>,
+) -> Line<'_> {
+    Line::from(
+        indexed_chars
+            .map(|(i, c)| {
+                let (state, pe) = at(i);
+                Span::styled(
+                    c.to_string(),
+                    typing_char_style(theme, state, pe, opponent_cursor_idx, i),
+                )
+            })
+            .collect::<Vec<Span>>(),
+    )
+}
+
 pub fn draw(frame: &mut Frame, app: &App) {
     let area = frame.area();
     let theme = &app.theme;
@@ -132,32 +193,12 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
             } else {
                 None
             };
-        let mut spans: Vec<Span> = Vec::new();
-        for (i, &c) in text_chars.iter().enumerate() {
-            let state = states.get(i).copied().unwrap_or(CharState::Untyped);
-            let mut style = match state {
-                CharState::Correct => base_style(theme).fg(theme.get(ThemeField::TypedCorrect)),
-                CharState::Incorrect => base_style(theme)
-                    .fg(theme.get(ThemeField::TypedIncorrect))
-                    .add_modifier(Modifier::UNDERLINED),
-                CharState::Current if pending_error => base_style(theme).bg(theme.get(ThemeField::CursorBg)).fg(theme.get(ThemeField::TypedIncorrect)),
-                CharState::Current => base_style(theme).bg(theme.get(ThemeField::CursorBg)).fg(theme.get(ThemeField::CursorFg)),
-                CharState::Untyped => base_style(theme).fg(theme.get(ThemeField::Untyped)),
-            };
-            if opponent_cursor_idx == Some(i) {
-                if matches!(state, CharState::Current) {
-                    style = if pending_error {
-                        base_style(theme).bg(theme.get(ThemeField::OppCursorBg)).fg(theme.get(ThemeField::TypedIncorrect))
-                    } else {
-                        base_style(theme).bg(theme.get(ThemeField::OppCursorBg)).fg(theme.get(ThemeField::OppCursorFg))
-                    };
-                } else {
-                    style = style.bg(Color::Magenta);
-                }
-            }
-            spans.push(Span::styled(c.to_string(), style));
-        }
-        let line = Line::from(spans);
+        let line = line_from_typing(
+            theme,
+            text_chars.iter().cloned().enumerate(),
+            |i| (states.get(i).copied().unwrap_or(CharState::Untyped), pending_error),
+            opponent_cursor_idx,
+        );
         let block = Block::default()
             .borders(Borders::ALL)
             .title("Type the given text!")
@@ -291,7 +332,11 @@ fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(5), Constraint::Length(2)])
+        .constraints([
+            Constraint::Min(5),
+            Constraint::Length(9),
+            Constraint::Length(2),
+        ])
         .split(inner);
 
     let fields: Vec<ThemeField> = ThemeField::iter().collect();
@@ -335,7 +380,7 @@ fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
     let table = Table::new(rows, widths)
         .header(
             Row::new(vec![
-                Cell::from("Setting"),
+                Cell::from("Theme Field"),
                 Cell::from("Palette"),
                 Cell::from("Shade"),
             ])
@@ -346,6 +391,46 @@ fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
         .style(base_style(theme));
 
     frame.render_widget(table, chunks[0]);
+
+    let preview_line1 = line_from_typing(
+        theme,
+        "The quick brown fox".chars().enumerate(),
+        |i| {
+            let state = match i {
+                0..=15 => CharState::Correct,
+                16 => CharState::Current,
+                _ => CharState::Untyped,
+            };
+            (state, false)
+        },
+        Some(8),
+    );
+    let preview_line2 = line_from_typing(
+        theme,
+        "jumped over the lazy dog".chars().enumerate(),
+        |i| {
+            match i {
+                0..=1 => (CharState::Correct, false),
+                2 => (CharState::Incorrect, false),
+                3 => (CharState::Current, true),
+                _ => (CharState::Untyped, false),
+            }
+        },
+        Some(0),
+    );
+
+    let preview_block = Block::default()
+        .borders(Borders::ALL)
+        .title("Preview")
+        .style(base_style(theme));
+    let preview_inner = preview_block.inner(chunks[1]);
+    frame.render_widget(preview_block, chunks[1]);
+    frame.render_widget(
+        Paragraph::new(vec![preview_line1, preview_line2])
+            .wrap(Wrap { trim: false })
+            .style(base_style(theme)),
+        preview_inner,
+    );
 
     let hints = vec![
         Line::from(""),
@@ -358,6 +443,6 @@ fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
         Paragraph::new(hints)
             .wrap(Wrap { trim: false })
             .style(base_style(theme)),
-        chunks[1],
+        chunks[2],
     );
 }
