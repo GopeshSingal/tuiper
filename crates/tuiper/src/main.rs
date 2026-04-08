@@ -71,7 +71,7 @@ fn run_app(
                         _ => {}
                     },
                     Screen::Queue => match key.code {
-                        KeyCode::Char('q') | KeyCode::Esc => {
+                        KeyCode::Char('q') | KeyCode::Char('Q') | KeyCode::Esc => {
                             if let Some(ref tx) = app.ws_tx {
                                 let _ = tx.send(ClientMessage::LeaveQueue);
                             }
@@ -179,6 +179,9 @@ fn run_app(
                             KeyCode::Esc => {
                                 app.quit = true;
                                 break;
+                            }
+                            KeyCode::Char('r') | KeyCode::Char('R') => {
+                                app.theme.reset();
                             }
                             _ => {}
                         }
