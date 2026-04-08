@@ -1,4 +1,4 @@
-use crate::app::{App, Screen};
+use crate::app::{App, RaceMode, Screen};
 use crate::theme::{Theme, ThemeEditColumn, ThemeField};
 use crate::typing::CharState;
 
@@ -80,7 +80,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     frame.render_widget(Block::default().style(base_style(theme)), area);
 
     match app.screen {
-        Screen::Lobby => draw_lobby(frame, theme),
+        Screen::Lobby => draw_lobby(frame, theme, app),
         Screen::Queue => draw_queue(frame, theme),
         Screen::Race => draw_race(frame, theme, app),
         Screen::Results => draw_results(frame, theme, app),
@@ -88,7 +88,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     }
 }
 
-fn draw_lobby(frame: &mut Frame, theme: &Theme) {
+fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
     let area = frame.area();
     let block = Block::default()
         .borders(Borders::ALL)
@@ -96,8 +96,15 @@ fn draw_lobby(frame: &mut Frame, theme: &Theme) {
         .style(base_style(theme));
     let inner = block.inner(area);
     frame.render_widget(block, area);
+
+    let mode_line = match app.mode {
+        RaceMode::Time => "Mode: Time",
+        RaceMode::Words => "Mode: Words",
+    };
+
     let text = vec![
         Line::from(""),
+        Line::from(mode_line),
         Line::from("S: start a race"),
         Line::from("F: find an opponent"),
         Line::from("C: customize"),
@@ -276,7 +283,7 @@ fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
                 .style(base_style(theme)),
             inner,
         );
-    } else if let Some(ref r) = app.result() {
+    } else if let Some(r) = app.result() {
         let text = vec![
             Line::from(""),
             Line::from(vec![
