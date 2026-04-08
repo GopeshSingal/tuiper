@@ -6,6 +6,7 @@ mod ui;
 mod words;
 
 use app::{App, Screen};
+use theme::{ThemeEditColumn, ThemeField};
 
 use crossterm::event::{self, Event, KeyCode, KeyEventKind};
 use ratatui::backend::CrosstermBackend;
@@ -15,6 +16,7 @@ use std::sync::mpsc;
 use std::time::Duration;
 
 use protocols::{ClientMessage, ServerMessage};
+use strum::IntoEnumIterator;
 
 const DEFAULT_WS_URL: &str = "ws://127.0.0.1:8080/ws";
 
@@ -47,10 +49,10 @@ fn run_app(
                             app.quit = true;
                             break;
                         }
-                        KeyCode::Char('s') => {
+                        KeyCode::Char('s') | KeyCode::Char('S') => {
                             app.start_race(30);
                         }
-                        KeyCode::Char('f') => {
+                        KeyCode::Char('f') | KeyCode::Char('F') => {
                             let value = 30;
                             if let Some(ref tx) = app.ws_tx {
                                 let _ = tx.send(ClientMessage::JoinQueue { value });
@@ -60,6 +62,11 @@ fn run_app(
                                 network::run_ws_thread(ws_url(), main_tx.clone(), app_rx);
                                 let _ = app_tx.send(ClientMessage::JoinQueue { value });
                             }
+                        }
+                        KeyCode::Char('c') | KeyCode::Char('C') => {
+                            app.theme_edit_row = 0;
+                            app.theme_edit_col = ThemeEditColumn::default();
+                            app.screen = Screen::Config;
                         }
                         _ => {}
                     },
@@ -134,6 +141,48 @@ fn run_app(
                         }
                         _ => {}
                     },
+                    Screen::Config => {
+                        let fields: Vec<ThemeField> = ThemeField::iter().collect();
+                        let n = fields.len();
+                        match key.code {
+                            KeyCode::Char('q') => {
+                                let _ = theme::save(&app.theme);
+                                app.screen = Screen::Lobby;
+                            }
+                            KeyCode::Up => {
+                                if app.theme_edit_row > 0 {
+                                    app.theme_edit_row -= 1;
+                                }
+                            }
+                            KeyCode::Down => {
+                                if app.theme_edit_row + 1 < n {
+                                    app.theme_edit_row += 1;
+                                }
+                            }
+                            KeyCode::Left => {
+                                app.theme_edit_col = app.theme_edit_col.next_left();
+                            }
+                            KeyCode::Right => {
+                                app.theme_edit_col = app.theme_edit_col.next_right();
+                            }
+                            KeyCode::Tab => {
+                                let field = fields[app.theme_edit_row];
+                                match app.theme_edit_col {
+                                    ThemeEditColumn::Palette => {
+                                        app.theme.cycle_palette(field, 1);
+                                    }
+                                    ThemeEditColumn::Shade => {
+                                        app.theme.cycle_shade(field, 1);
+                                    }
+                                }
+                            }
+                            KeyCode::Esc => {
+                                app.quit = true;
+                                break;
+                            }
+                            _ => {}
+                        }
+                    }
                 }
             }
         }
