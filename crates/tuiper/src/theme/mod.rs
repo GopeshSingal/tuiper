@@ -7,11 +7,12 @@ use std::path::PathBuf;
 
 use dirs::{config_dir};
 use ratatui::style::{Color};
+use ratatui::style::palette::tailwind;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_str, to_string_pretty};
 use strum::{Display, EnumIter, IntoEnumIterator};
 
-use constants::TAILWIND_GRID;
+use constants::{PALETTE_NAMES, SHADE_NAMES, TAILWIND_GRID};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, EnumIter, Display)]
 pub enum ThemeField {
@@ -37,6 +38,45 @@ pub enum ThemeField {
     OppCursorFg,
 }
 
+impl ThemeField {
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::WindowBg => "window background",
+            Self::Untyped => "untyped text",
+            Self::TypedCorrect => "typed correct",
+            Self::TypedIncorrect => "typed incorrect",
+            Self::CursorBg => "cursor background",
+            Self::CursorFg => "cursor foreground",
+            Self::CursorFgError => "cursor foreground (error)",
+            Self::OppCursorBg => "opponent cursor background",
+            Self::OppCursorFg => "opponent cursor foreground",
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum ThemeEditColumn {
+    #[default]
+    Palette,
+    Shade,
+}
+
+impl ThemeEditColumn {
+    pub fn next_left(self) -> Self {
+        match self {
+            Self::Palette => Self::Palette,
+            Self::Shade => Self::Palette,
+        }
+    }
+
+    pub fn next_right(self) -> Self {
+        match self {
+            Self::Palette => Self::Shade,
+            Self::Shade => Self::Shade,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Theme {
     #[serde(flatten)]
@@ -47,17 +87,17 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         let mut fields = HashMap::new();
-        fields.insert(ThemeField::WindowBg, Color::Rgb(16, 16, 16));
-        fields.insert(ThemeField::Untyped, Color::DarkGray);
-        fields.insert(ThemeField::TypedCorrect, Color::Green);
-        fields.insert(ThemeField::TypedIncorrect, Color::Red);
-        fields.insert(ThemeField::CursorBg, Color::DarkGray);
-        fields.insert(ThemeField::CursorFg, Color::White);
-        fields.insert(ThemeField::CursorFgError, Color::Red);
+        fields.insert(ThemeField::WindowBg, tailwind::SLATE.c800);
+        fields.insert(ThemeField::Untyped, tailwind::GRAY.c400);
+        fields.insert(ThemeField::TypedCorrect, tailwind::INDIGO.c400);
+        fields.insert(ThemeField::TypedIncorrect, tailwind::RED.c400);
+        fields.insert(ThemeField::CursorBg, tailwind::GRAY.c900);
+        fields.insert(ThemeField::CursorFg, tailwind::GRAY.c50);
+        fields.insert(ThemeField::CursorFgError, tailwind::RED.c400);
 
         // multiplayer
-        fields.insert(ThemeField::OppCursorBg, Color::LightMagenta);
-        fields.insert(ThemeField::OppCursorFg, Color::White);
+        fields.insert(ThemeField::OppCursorBg, tailwind::VIOLET.c400);
+        fields.insert(ThemeField::OppCursorFg, tailwind::GRAY.c50);
 
         Self { fields }
     }
@@ -73,7 +113,7 @@ impl Theme {
     }
 
     pub fn cycle_palette(&mut self, field: ThemeField, delta: isize) {
-        let (r, c) = self.get_grid_pos(field).unwrap_or((0, 5));
+        let (r, _c) = self.get_grid_pos(field).unwrap_or((0, 5));
         let next_r = (r as isize + delta).rem_euclid(22) as usize;
 
         self.set(field, TAILWIND_GRID[next_r][5]);
@@ -84,6 +124,16 @@ impl Theme {
         let next_c = (c as isize + delta).rem_euclid(11) as usize;
 
         self.set(field, TAILWIND_GRID[r][next_c]);
+    }
+
+    pub fn palette_label(&self, field: ThemeField) -> &'static str {
+        let r = self.get_grid_pos(field).map(|(r, _)| r).unwrap_or(0);
+        PALETTE_NAMES[r]
+    }
+
+    pub fn shade_label(&self, field: ThemeField) -> &'static str {
+        let c = self.get_grid_pos(field).map(|(_, c)| c).unwrap_or(5);
+        SHADE_NAMES[c]
     }
 
     fn get_grid_pos(&self, field: ThemeField) -> Option<(usize, usize)> {

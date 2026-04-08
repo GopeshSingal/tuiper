@@ -25,3 +25,11 @@ pub const TAILWIND_GRID: [[Color; 11]; 22] = [
     [tailwind::PINK.c50, tailwind::PINK.c100, tailwind::PINK.c200, tailwind::PINK.c300, tailwind::PINK.c400, tailwind::PINK.c500, tailwind::PINK.c600, tailwind::PINK.c700, tailwind::PINK.c800, tailwind::PINK.c900, tailwind::PINK.c950],
     [tailwind::ROSE.c50, tailwind::ROSE.c100, tailwind::ROSE.c200, tailwind::ROSE.c300, tailwind::ROSE.c400, tailwind::ROSE.c500, tailwind::ROSE.c600, tailwind::ROSE.c700, tailwind::ROSE.c800, tailwind::ROSE.c900, tailwind::ROSE.c950],
 ];
+
+pub const PALETTE_NAMES: [&str; 22] = [
+    "Slate", "Gray", "Zinc", "Neutral", "Stone", "Red", "Orange", "Amber", "Yellow", "Lime",
+    "Green", "Emerald", "Teal", "Cyan", "Sky", "Blue", "Indigo", "Violet", "Purple", "Fuchsia",
+    "Pink", "Rose",
+];
+
+pub const SHADE_NAMES: [&str; 11] = ["50", "100", "200", "300", "400", "500", "600", "700", "800", "900", "950"];
