@@ -153,7 +153,19 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
         .split(area);
 
     if let Some(t) = typing {
-        let header_str = format!("Time: {}s | {:.0}s elapsed", t.value(), t.elapsed_secs());
+        let header_str = if app.is_multi() || app.mode == RaceMode::Time {
+            let remaining = (t.value() as f64 - t.elapsed_secs()).max(0.0);
+            format!("{:.0}s left", remaining)
+        } else {
+            let goal = t.value();
+            let typed = t.words_typed().min(goal);
+            format!(
+                "{:.0}s elapsed | {}/{} words",
+                t.elapsed_secs(),
+                typed,
+                goal
+            )
+        };
         let stats = format!(
             "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}% | {}",
             t.wpm(),
