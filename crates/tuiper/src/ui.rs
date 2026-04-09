@@ -55,6 +55,44 @@ fn typing_char_style(
     style
 }
 
+fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
+    const DOT_TRACK: &str = "·";
+    const DOT_FILL: &str = "•";
+    const DOT_FILL_CURRENT: &str = "●";
+
+    let w = width as usize;
+    if w < 2 {
+        return Line::from("");
+    }
+    let inner = w - 2;
+    let ratio = ratio.clamp(0.0, 1.0);
+    let filled_end = ratio * inner as f64;
+    let filled_count = (filled_end.floor() as usize).min(inner);
+
+    let bracket_style = base_style(theme).fg(theme.get(ThemeField::Untyped));
+    let track_style = base_style(theme).fg(theme.get(ThemeField::Untyped));
+    let fill_style = base_style(theme).fg(theme.get(ThemeField::TypedCorrect));
+    let fill_current_style = base_style(theme)
+        .fg(theme.get(ThemeField::TypedCorrect))
+        .add_modifier(Modifier::BOLD);
+
+    let mut spans = Vec::with_capacity(inner + 2);
+    spans.push(Span::styled("[", bracket_style));
+
+    for i in 0..inner {
+        if i >= filled_count {
+            spans.push(Span::styled(DOT_TRACK, track_style));
+        } else if i == filled_count - 1 {
+            spans.push(Span::styled(DOT_FILL_CURRENT, fill_current_style));
+        } else {
+            spans.push(Span::styled(DOT_FILL, fill_style));
+        }
+    }
+
+    spans.push(Span::styled("]", bracket_style));
+    Line::from(spans)
+}
+
 fn line_from_typing(
     theme: &Theme,
     indexed_chars: impl Iterator<Item = (usize, char)>,
@@ -142,41 +180,52 @@ fn draw_queue(frame: &mut Frame, theme: &Theme) {
 fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
     let area = frame.area();
     let typing = app.typing();
+    let middle_h = if typing.is_some()
+        && (app.is_waiting_for_multiplayer_start() || app.is_multi())
+    {
+        1u16
+    } else {
+        0
+    };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
             Constraint::Length(2),
-            Constraint::Length(2),
+            Constraint::Length(middle_h),
             Constraint::Min(5),
             Constraint::Length(3),
         ])
         .split(area);
 
     if let Some(t) = typing {
-        let header_str = if app.is_multi() || app.mode == RaceMode::Time {
-            let remaining = (t.value() as f64 - t.elapsed_secs()).max(0.0);
-            format!("{:.0}s left", remaining)
+        let header_rows = Layout::default()
+            .direction(Direction::Vertical)
+            .constraints([Constraint::Length(1), Constraint::Length(1)])
+            .split(chunks[0]);
+
+        let finish_mode = if app.is_multi() {
+            RaceMode::Time
         } else {
-            let goal = t.value();
-            let typed = t.words_typed().min(goal);
-            format!(
-                "{:.0}s elapsed | {}/{} words",
-                t.elapsed_secs(),
-                typed,
-                goal
-            )
+            app.mode
         };
+        let ratio = t.progress_ratio(finish_mode);
+
         let stats = format!(
-            "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}% | {}",
+            "  WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}%",
             t.wpm(),
             t.raw_wpm(),
             t.accuracy(),
             t.consistency(),
-            header_str
         );
         frame.render_widget(
             Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
-            chunks[0],
+            header_rows[0],
+        );
+
+        let bar = race_progress_line(theme, header_rows[1].width, ratio);
+        frame.render_widget(
+            Paragraph::new(bar).style(base_style(theme)),
+            header_rows[1],
         );
 
         if app.is_waiting_for_multiplayer_start() {

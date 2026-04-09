@@ -99,6 +99,25 @@ impl TypingState {
         }
     }
 
+    pub fn progress_ratio(&self, mode: RaceMode) -> f64 {
+        match mode {
+            RaceMode::Time => {
+                let v = self.value as f64;
+                if v <= 0.0 {
+                    return 1.0;
+                }
+                (self.elapsed_secs() / v).min(1.0)
+            }
+            RaceMode::Words => {
+                let goal = self.value;
+                if goal == 0 {
+                    return 1.0;
+                }
+                (self.words_typed().min(goal) as f64 / goal as f64).min(1.0)
+            }
+        }
+    }
+
     pub fn correct_chars(&self) -> usize {
         let expected: Vec<char> = self.text.chars().collect();
         let actual: Vec<char> = self.input.chars().collect();
