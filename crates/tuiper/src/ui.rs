@@ -187,10 +187,11 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
     } else {
         0
     };
+    let header_h = if typing.is_some() { 4u16 } else { 2u16 };
     let chunks = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(2),
+            Constraint::Length(header_h),
             Constraint::Length(middle_h),
             Constraint::Min(5),
             Constraint::Length(3),
@@ -200,7 +201,7 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
     if let Some(t) = typing {
         let header_rows = Layout::default()
             .direction(Direction::Vertical)
-            .constraints([Constraint::Length(1), Constraint::Length(1)])
+            .constraints([Constraint::Length(3), Constraint::Length(1)])
             .split(chunks[0]);
 
         let finish_mode = if app.is_multi() {
@@ -211,15 +212,21 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
         let ratio = t.progress_ratio(finish_mode);
 
         let stats = format!(
-            "  WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}%",
+            "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}%",
             t.wpm(),
             t.raw_wpm(),
             t.accuracy(),
             t.consistency(),
         );
+        let stats_block = Block::default()
+            .borders(Borders::ALL)
+            .title("Stats")
+            .style(base_style(theme));
+        let stats_inner = stats_block.inner(header_rows[0]);
+        frame.render_widget(stats_block, header_rows[0]);
         frame.render_widget(
             Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
-            header_rows[0],
+            stats_inner,
         );
 
         let bar = race_progress_line(theme, header_rows[1].width, ratio);
@@ -236,7 +243,7 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
                 chunks[1],
             );
         } else if app.is_multi() {
-            let opponent_stats = format!("Opponent WPM: {:.0}, Opponent Chars: {}", app.opponent_wpm, app.opponent_chars);
+            let opponent_stats = format!("Opponent WPM: {:.0}", app.opponent_wpm);
             frame.render_widget(
                 Paragraph::new(opponent_stats).style(base_style(theme).fg(Color::Yellow)),
                 chunks[1],
@@ -267,7 +274,7 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
         );
         let block = Block::default()
             .borders(Borders::ALL)
-            .title("Type the given text!")
+            .title("Type here")
             .style(base_style(theme));
         let inner = block.inner(chunks[2]);
         frame.render_widget(block, chunks[2]);
@@ -291,7 +298,7 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
     } else if app.is_multi() {
         "Race is in progress"
     } else {
-        "Tab: restart"
+        "Tab / Enter: restart"
     };
     frame.render_widget(
         Paragraph::new(hint).style(base_style(theme).fg(Color::DarkGray)),
@@ -369,7 +376,7 @@ fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             ]),
             Line::from(""),
             Line::from(Span::styled(
-                "Tab or Enter: try again    Q: lobby",
+                "Tab / Enter: try again    Q: lobby",
                 base_style(theme),
             )),
         ];
