@@ -73,6 +73,10 @@ impl TypingState {
         self.value
     }
 
+    pub fn words_typed(&self) -> u32 {
+        self.input.split_whitespace().count() as u32
+    }
+
     pub fn append_text(&mut self, more:&str) {
         if more.is_empty() {
             return;

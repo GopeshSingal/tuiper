@@ -140,7 +140,7 @@ impl App {
         let first_chunk = match self.mode {
             RaceMode::Time => generate_next_chunk(seed, value, 0)
                 .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
-            RaceMode::Words => generate_words_text(seed, value, 10)
+            RaceMode::Words => generate_words_text(seed, value, 30)
                 .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
         };
         let word_count = first_chunk.split_whitespace().count() as u32;
@@ -176,7 +176,7 @@ impl App {
             }
             t.sample_raw_wpm();
 
-            if self.mode == RaceMode::Time {
+            if self.mode == RaceMode::Time || self.multiplayer_race {
                 if let Some(seed) = self.seed {
                     let text_words = t.text().split_whitespace().count();
                     let cursor_words = t.input().split_whitespace().count();
@@ -208,7 +208,12 @@ impl App {
                 }
             }
 
-            if t.is_finished(self.mode) {
+            let finish_mode = if self.multiplayer_race {
+                RaceMode::Time
+            } else {
+                self.mode
+            };
+            if t.is_finished(finish_mode) {
                 if self.multiplayer_race {
                     if let Some(ref tx) = self.ws_tx {
                         let stats = t.final_stats();
