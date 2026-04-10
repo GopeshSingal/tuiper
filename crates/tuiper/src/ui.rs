@@ -1,13 +1,20 @@
 use crate::app::{App, RaceMode, Screen};
 use crate::theme::{Theme, ThemeEditColumn, ThemeField};
-use crate::typing::CharState;
+use crate::typing::{CharState, TypingState};
 
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier, Style};
-use ratatui::text::{Line, Span};
+use ratatui::text::{Line, Span, Text};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
 use strum::IntoEnumIterator;
+
+struct RaceLayout {
+    header: Rect,
+    middle: Rect,
+    body: Rect,
+    footer: Rect,
+}
 
 fn base_style(theme: &Theme) -> Style {
     Style::default().bg(theme.get(ThemeField::WindowBg))
@@ -55,6 +62,116 @@ fn typing_char_style(
     style
 }
 
+fn default_block<'a>(title: &'a str, theme: &Theme) -> Block<'a> {
+    Block::default()
+        .borders(Borders::ALL)
+        .title(title)
+        .style(base_style(theme))
+}
+
+fn default_paragraph<'a, T>(text: T, theme: &Theme) -> Paragraph<'a>
+where T: Into<Text<'a>> {
+    Paragraph::new(text)
+        .wrap(Wrap {
+            trim: false
+        })
+        .style(base_style(theme))
+}
+
+fn line_from_typing(
+    theme: &Theme,
+    indexed_chars: impl Iterator<Item = (usize, char)>,
+    at: impl Fn(usize) -> (CharState, bool),
+    opponent_cursor_idx: Option<usize>,
+) -> Line<'_> {
+    Line::from(
+        indexed_chars
+            .map(|(i, c)| {
+                let (state, pe) = at(i);
+                Span::styled(
+                    c.to_string(),
+                    typing_char_style(theme, state, pe, opponent_cursor_idx, i),
+                )
+            })
+            .collect::<Vec<Span>>(),
+    )
+}
+
+pub fn draw(frame: &mut Frame, app: &App) {
+    let area = frame.area();
+    let theme = &app.theme;
+    frame.render_widget(Block::default().style(base_style(theme)), area);
+
+    match app.screen {
+        Screen::Lobby => draw_lobby(frame, theme, app),
+        Screen::Queue => draw_queue(frame, theme),
+        Screen::Race => draw_race(frame, theme, app),
+        Screen::Results => draw_results(frame, theme, app),
+        Screen::Config => draw_config(frame, theme, app),
+    }
+}
+
+fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
+    let area = frame.area();
+    let block = default_block("Tuiper", theme);
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+
+    let mode_line = match app.mode {
+        RaceMode::Time => "Mode: Time",
+        RaceMode::Words => "Mode: Words",
+    };
+
+    let text = vec![
+        Line::from(""),
+        Line::from(mode_line),
+        Line::from("S: start a race"),
+        Line::from("F: find an opponent"),
+        Line::from("C: customize"),
+        Line::from("Esc: Quit"),
+    ];
+    frame.render_widget(default_paragraph(text, theme), inner);
+}
+
+fn draw_queue(frame: &mut Frame, theme: &Theme) {
+    let area = frame.area();
+    let block = default_block("Finding opponent...", theme);
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    let text = vec![
+        Line::from(""),
+        Line::from("Q: leave queue"),
+        Line::from("Esc: Quit"),
+    ];
+    frame.render_widget(default_paragraph(text, theme), inner);
+}
+
+fn race_layout(area: Rect, app: &App, is_typing: bool) -> RaceLayout {
+    let middle_h = if is_typing && (app.is_waiting_for_multiplayer_start() || app.is_multi()) {
+        1
+    } else {
+        0
+    };
+    let header_h = if is_typing { 4 } else { 2 };
+
+    let chunks = Layout::default()
+        .direction(Direction::Vertical)
+        .constraints([
+            Constraint::Length(header_h),
+            Constraint::Length(middle_h),
+            Constraint::Min(5),
+            Constraint::Length(3)
+        ])
+        .split(area);
+
+    RaceLayout {
+        header: chunks[0],
+        middle: chunks[1],
+        body: chunks[2],
+        footer: chunks[3],
+    }
+}
+
 fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
     const DOT_TRACK: &str = "·";
     const DOT_FILL: &str = "•";
@@ -93,206 +210,94 @@ fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
     Line::from(spans)
 }
 
-fn line_from_typing(
-    theme: &Theme,
-    indexed_chars: impl Iterator<Item = (usize, char)>,
-    at: impl Fn(usize) -> (CharState, bool),
-    opponent_cursor_idx: Option<usize>,
-) -> Line<'_> {
-    Line::from(
-        indexed_chars
-            .map(|(i, c)| {
-                let (state, pe) = at(i);
-                Span::styled(
-                    c.to_string(),
-                    typing_char_style(theme, state, pe, opponent_cursor_idx, i),
-                )
-            })
-            .collect::<Vec<Span>>(),
-    )
-}
-
-pub fn draw(frame: &mut Frame, app: &App) {
-    let area = frame.area();
-    let theme = &app.theme;
-    frame.render_widget(Block::default().style(base_style(theme)), area);
-
-    match app.screen {
-        Screen::Lobby => draw_lobby(frame, theme, app),
-        Screen::Queue => draw_queue(frame, theme),
-        Screen::Race => draw_race(frame, theme, app),
-        Screen::Results => draw_results(frame, theme, app),
-        Screen::Config => draw_config(frame, theme, app),
-    }
-}
-
-fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
-    let area = frame.area();
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Tuiper")
-        .style(base_style(theme));
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-
-    let mode_line = match app.mode {
-        RaceMode::Time => "Mode: Time",
-        RaceMode::Words => "Mode: Words",
-    };
-
-    let text = vec![
-        Line::from(""),
-        Line::from(mode_line),
-        Line::from("S: start a race"),
-        Line::from("F: find an opponent"),
-        Line::from("C: customize"),
-        Line::from("Esc: Quit"),
-    ];
-    frame.render_widget(
-        Paragraph::new(text)
-            .wrap(Wrap { trim: false })
-            .style(base_style(theme)),
-        inner,
-    );
-}
-
-fn draw_queue(frame: &mut Frame, theme: &Theme) {
-    let area = frame.area();
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Finding opponent")
-        .style(base_style(theme));
-    let inner = block.inner(area);
-    frame.render_widget(block, area);
-    let text = vec![
-        Line::from(""),
-        Line::from("Q: leave queue"),
-        Line::from("Esc: Quit"),
-    ];
-    frame.render_widget(
-        Paragraph::new(text)
-            .wrap(Wrap { trim: false })
-            .style(base_style(theme)),
-        inner,
-    );
-}
-
-fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
-    let area = frame.area();
-    let typing = app.typing();
-    let middle_h = if typing.is_some()
-        && (app.is_waiting_for_multiplayer_start() || app.is_multi())
-    {
-        1u16
-    } else {
-        0
-    };
-    let header_h = if typing.is_some() { 4u16 } else { 2u16 };
-    let chunks = Layout::default()
+fn render_race_header(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState, area: Rect) {
+    let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([
-            Constraint::Length(header_h),
-            Constraint::Length(middle_h),
-            Constraint::Min(5),
             Constraint::Length(3),
+            Constraint::Length(1)
         ])
         .split(area);
 
-    if let Some(t) = typing {
-        let header_rows = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Length(3), Constraint::Length(1)])
-            .split(chunks[0]);
+    let finish_mode = if app.is_multi() {
+        RaceMode::Time
+    } else {
+        app.mode
+    };
 
-        let finish_mode = if app.is_multi() {
-            RaceMode::Time
-        } else {
-            app.mode
-        };
-        let ratio = t.progress_ratio(finish_mode);
+    let ratio = t.progress_ratio(finish_mode);
 
-        let stats = format!(
-            "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}%",
-            t.wpm(),
-            t.raw_wpm(),
-            t.accuracy(),
-            t.consistency(),
-        );
-        let stats_block = Block::default()
-            .borders(Borders::ALL)
-            .title("Stats")
-            .style(base_style(theme));
-        let stats_inner = stats_block.inner(header_rows[0]);
-        frame.render_widget(stats_block, header_rows[0]);
+    let stats = format!(
+        "WPM: {:.0} Raw: {:.0} Acc: {:.1}% Consistency: {:.0}%",
+        t.wpm(),
+        t.raw_wpm(),
+        t.accuracy(),
+        t.consistency(),
+    );
+
+    let stats_block = default_block("Stats", theme);
+    let stats_inner = stats_block.inner(rows[0]);
+    frame.render_widget(stats_block, rows[0]);
+    frame.render_widget(
+        Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
+        stats_inner,
+    );
+
+    let bar = race_progress_line(theme, rows[1].width, ratio);
+    frame.render_widget(default_paragraph(bar, theme), rows[1]);
+}
+
+fn render_race_middle(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
+    if app.is_waiting_for_multiplayer_start() {
+        let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
+        let waiting_str = format!("Starting in {}s...", countdown);
         frame.render_widget(
-            Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
-            stats_inner,
+            Paragraph::new(waiting_str).style(base_style(theme).fg(Color::Yellow)),
+            area,
         );
-
-        let bar = race_progress_line(theme, header_rows[1].width, ratio);
+    } else if app.is_multi() {
+        let opponent_stats = format!("Opponent WPM: {:.0}", app.opponent_wpm);
         frame.render_widget(
-            Paragraph::new(bar).style(base_style(theme)),
-            header_rows[1],
-        );
-
-        if app.is_waiting_for_multiplayer_start() {
-            let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
-            let waiting = format!("Starting in {}s...", countdown);
-            frame.render_widget(
-                Paragraph::new(waiting).style(base_style(theme).fg(Color::Yellow)),
-                chunks[1],
-            );
-        } else if app.is_multi() {
-            let opponent_stats = format!("Opponent WPM: {:.0}", app.opponent_wpm);
-            frame.render_widget(
-                Paragraph::new(opponent_stats).style(base_style(theme).fg(Color::Yellow)),
-                chunks[1],
-            );
-        } else {
-            frame.render_widget(Paragraph::new("").style(base_style(theme)), chunks[1]);
-        }
-
-        let states = t.char_states();
-        let pending_error = t.has_unfixed_error();
-        let text_chars: Vec<char> = t.text().chars().collect();
-        let opponent_cursor_idx =
-            if app.is_multi() && !app.is_waiting_for_multiplayer_start() {
-                let oc = app.opponent_chars as usize;
-                if oc < text_chars.len() {
-                    Some(oc)
-                } else {
-                    None
-                }
-            } else {
-                None
-            };
-        let line = line_from_typing(
-            theme,
-            text_chars.iter().cloned().enumerate(),
-            |i| (states.get(i).copied().unwrap_or(CharState::Untyped), pending_error),
-            opponent_cursor_idx,
-        );
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .title("Type here")
-            .style(base_style(theme));
-        let inner = block.inner(chunks[2]);
-        frame.render_widget(block, chunks[2]);
-        frame.render_widget(
-            Paragraph::new(line)
-                .wrap(Wrap { trim: false })
-                .style(base_style(theme)),
-            inner,
+            Paragraph::new(opponent_stats).style(base_style(theme).fg(Color::Yellow)),
+            area,
         );
     } else {
-        let msg = Paragraph::new("Loading...").block(
-            Block::default()
-                .borders(Borders::ALL)
-                .style(base_style(theme)),
-        );
-        frame.render_widget(msg, chunks[2]);
+        frame.render_widget(default_paragraph("", theme), area);
     }
+}
 
+fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState, area: Rect) {
+    let states = t.char_states();
+    let pending_error = t.has_unfixed_error();
+    let text_chars: Vec<char> = t.text().chars().collect();
+
+    let opponent_cursor_idx = if app.is_multi() && !app.is_waiting_for_multiplayer_start() {
+        let oc = app.opponent_chars as usize;
+        (oc < text_chars.len()).then_some(oc)
+    } else {
+        None
+    };
+
+    let line = line_from_typing(
+        theme,
+        text_chars.iter().cloned().enumerate(),
+        |i| (states.get(i).copied().unwrap_or(CharState::Untyped), pending_error),
+        opponent_cursor_idx,
+    );
+
+    let block = default_block("Type here", theme);
+    let inner = block.inner(area);
+    frame.render_widget(block, area);
+    frame.render_widget(default_paragraph(line, theme), inner);
+}
+
+fn render_race_loading(frame: &mut Frame, theme: &Theme, area: Rect) {
+    let msg = Paragraph::new("Loading...")
+        .block(default_block("", theme));
+    frame.render_widget(msg, area);
+}
+
+fn render_race_footer(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
     let hint = if app.is_waiting_for_multiplayer_start() {
         "Waiting for race to start"
     } else if app.is_multi() {
@@ -300,18 +305,31 @@ fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
     } else {
         "Tab / Enter: restart"
     };
+
     frame.render_widget(
         Paragraph::new(hint).style(base_style(theme).fg(Color::DarkGray)),
-        chunks[3],
+        area,
     );
+}
+
+fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
+    let typing = app.typing();
+    let layout = race_layout(frame.area(), app, typing.is_some());
+
+    if let Some(t) = typing {
+        render_race_header(frame, theme, app, t, layout.header);
+        render_race_middle(frame, theme, app, layout.middle);
+        render_race_text(frame, theme, app, t, layout.body);
+    } else {
+        render_race_loading(frame, theme, layout.body);
+    }
+
+    render_race_footer(frame, theme, app, layout.footer);
 }
 
 fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
     let area = frame.area();
-    let block = Block::default()
-        .borders(Borders::ALL)
-        .title("Results ")
-        .style(base_style(theme));
+    let block = default_block("Results", theme);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -345,12 +363,7 @@ fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
                 base_style(theme),
             )),
         ];
-        frame.render_widget(
-            Paragraph::new(text)
-                .wrap(Wrap { trim: false })
-                .style(base_style(theme)),
-            inner,
-        );
+        frame.render_widget(default_paragraph(text, theme), inner);
     } else if let Some(r) = app.result() {
         let text = vec![
             Line::from(""),
