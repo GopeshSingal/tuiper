@@ -25,6 +25,9 @@ pub enum RaceMode {
 
 const REFILL_THRESHOLD: usize = 10;
 
+pub const WORDS_PRESETS: [u32; 3] = [25, 50, 100];
+pub const TIME_PRESETS: [u32; 3] = [15, 30, 60];
+
 pub struct App {
     pub screen: Screen,
     pub typing: Option<TypingState>,
@@ -52,6 +55,8 @@ pub struct App {
 
     // race mode
     pub mode: RaceMode,
+    pub words_preset_idx: u8,
+    pub time_preset_idx: u8,
 }
 
 impl App {
@@ -82,7 +87,24 @@ impl App {
 
             // race mode
             mode: RaceMode::Words,
+            words_preset_idx: 1,
+            time_preset_idx: 1,
         }
+    }
+
+    pub fn lobby_value(&self) -> u32 {
+        match self.mode {
+            RaceMode::Words => WORDS_PRESETS[self.words_preset_idx as usize],
+            RaceMode::Time => TIME_PRESETS[self.time_preset_idx as usize],
+        }
+    }
+
+    pub fn cycle_length(&mut self, delta: i32) {
+        let idx = match self.mode {
+            RaceMode::Words => &mut self.words_preset_idx,
+            RaceMode::Time => &mut self.time_preset_idx,
+        };
+        *idx = (*idx as i32 + delta).rem_euclid(3) as u8;
     }
 
     pub fn cycle_mode(&mut self, delta: i32) {
@@ -140,7 +162,7 @@ impl App {
         let first_chunk = match self.mode {
             RaceMode::Time => generate_next_chunk(seed, value, 0)
                 .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
-            RaceMode::Words => generate_words_text(seed, value, 30)
+            RaceMode::Words => generate_words_text(seed, 0, value)
                 .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
         };
         let word_count = first_chunk.split_whitespace().count() as u32;

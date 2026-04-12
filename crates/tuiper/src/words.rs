@@ -12,7 +12,7 @@ fn words() -> Vec<&'static str> {
 
 pub fn generate_words_text(
     seed: u64,
-    value: u32,
+    _value: u32,
     total_words: u32,
 ) -> Option<String> {
     let word_list = words();
@@ -36,7 +36,7 @@ pub fn generate_words_text(
 
 pub fn generate_next_chunk(
     seed: u64,
-    value: u32,
+    _value: u32,
     words_so_far: u32,
 ) -> Option<String> {
     let word_list = words();
