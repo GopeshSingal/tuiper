@@ -16,6 +16,8 @@ A terminal user-interface for practicing typing and for racing against fellow ty
 - monkeytype by Jack Miodec
 
 ## Current installation steps
-- 1. ``git clone https://github.com/GopeshSingal/oxide.git``
-  2. From the root run ``cargo build -p oxide`` once
-  3. To play game just run ``cargo run -p oxide``
+  1. Install Rust
+  2. ``git clone https://github.com/GopeshSingal/tuiper.git``
+  3. ``export WS_URL=ws://35.223.202.42:8080/ws``
+  4. ``cargo run --release -p tuiper``
+
