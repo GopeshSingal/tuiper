@@ -1,6 +1,6 @@
 use crate::theme::{self, Theme, ThemeEditColumn};
 use crate::typing::{TypingState, TypingStats};
-use crate::words::{generate_next_chunk};
+use crate::words::{generate_next_chunk, generate_words_text};
 
 use common::now_unix_ms;
 use protocols::{ClientMessage, RaceResults, ServerMessage};
@@ -17,7 +17,16 @@ pub enum Screen {
     Config,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum RaceMode {
+    Time,
+    Words,
+}
+
 const REFILL_THRESHOLD: usize = 10;
+
+pub const WORDS_PRESETS: [u32; 3] = [25, 50, 100];
+pub const TIME_PRESETS: [u32; 3] = [15, 30, 60];
 
 pub struct App {
     pub screen: Screen,
@@ -43,6 +52,11 @@ pub struct App {
     pub theme: Theme,
     pub theme_edit_row: usize,
     pub theme_edit_col: ThemeEditColumn,
+
+    // race mode
+    pub mode: RaceMode,
+    pub words_preset_idx: u8,
+    pub time_preset_idx: u8,
 }
 
 impl App {
@@ -70,6 +84,40 @@ impl App {
             theme: theme::load(),
             theme_edit_row: 0,
             theme_edit_col: ThemeEditColumn::default(),
+
+            // race mode
+            mode: RaceMode::Words,
+            words_preset_idx: 1,
+            time_preset_idx: 1,
+        }
+    }
+
+    pub fn lobby_value(&self) -> u32 {
+        match self.mode {
+            RaceMode::Words => WORDS_PRESETS[self.words_preset_idx as usize],
+            RaceMode::Time => TIME_PRESETS[self.time_preset_idx as usize],
+        }
+    }
+
+    pub fn cycle_length(&mut self, delta: i32) {
+        let idx = match self.mode {
+            RaceMode::Words => &mut self.words_preset_idx,
+            RaceMode::Time => &mut self.time_preset_idx,
+        };
+        *idx = (*idx as i32 + delta).rem_euclid(3) as u8;
+    }
+
+    pub fn cycle_mode(&mut self, delta: i32) {
+        if delta > 0 {
+            self.mode = match self.mode {
+                RaceMode::Time => RaceMode::Words,
+                RaceMode::Words => RaceMode::Time
+            }
+        } else {
+            self.mode = match self.mode {
+                RaceMode::Time => RaceMode::Words,
+                RaceMode::Words => RaceMode::Time
+            }
         }
     }
 
@@ -111,8 +159,12 @@ impl App {
         self.multiplayer_start_at_unix_ms = None;
 
         let seed = rand::random();
-        let first_chunk = generate_next_chunk(seed, value, 0)
-            .unwrap_or_else(|| "the quick brown fox".to_string());
+        let first_chunk = match self.mode {
+            RaceMode::Time => generate_next_chunk(seed, value, 0)
+                .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
+            RaceMode::Words => generate_words_text(seed, 0, value)
+                .unwrap_or_else(|| "jumped over the lazy dog".to_string()),
+        };
         let word_count = first_chunk.split_whitespace().count() as u32;
         self.typing = Some(TypingState::new(first_chunk, value));
         self.seed = Some(seed);
@@ -146,22 +198,24 @@ impl App {
             }
             t.sample_raw_wpm();
 
-            if let Some(seed) = self.seed {
-                let text_words = t.text().split_whitespace().count();
-                let cursor_words = t.input().split_whitespace().count();
-                let words_ahead = text_words.saturating_sub(cursor_words);
-                if words_ahead <= REFILL_THRESHOLD {
-                    if let Some(chunk) = generate_next_chunk(seed, t.value(), self.words_so_far) {
-                        if !chunk.is_empty() {
-                            t.append_text(&chunk);
-                            self.words_so_far += chunk.split_whitespace().count() as u32;
+            if self.mode == RaceMode::Time || self.multiplayer_race {
+                if let Some(seed) = self.seed {
+                    let text_words = t.text().split_whitespace().count();
+                    let cursor_words = t.input().split_whitespace().count();
+                    let words_ahead = text_words.saturating_sub(cursor_words);
+                    if words_ahead <= REFILL_THRESHOLD {
+                        if let Some(chunk) = generate_next_chunk(seed, t.value(), self.words_so_far) {
+                            if !chunk.is_empty() {
+                                t.append_text(&chunk);
+                                self.words_so_far += chunk.split_whitespace().count() as u32;
+                            }
+                        } else {
+                            self.seed = None;
                         }
-                    } else {
-                        self.seed = None;
                     }
                 }
             }
-            
+
             let elapsed = t.elapsed_secs();
             if self.multiplayer_race {
                 if let Some(ref tx) = self.ws_tx {
@@ -176,7 +230,12 @@ impl App {
                 }
             }
 
-            if t.is_finished() {
+            let finish_mode = if self.multiplayer_race {
+                RaceMode::Time
+            } else {
+                self.mode
+            };
+            if t.is_finished(finish_mode) {
                 if self.multiplayer_race {
                     if let Some(ref tx) = self.ws_tx {
                         let stats = t.final_stats();

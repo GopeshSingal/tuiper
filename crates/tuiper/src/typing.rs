@@ -1,5 +1,7 @@
 use std::time::Instant;
 
+use crate::app::RaceMode;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharState {
     Untyped,
@@ -70,7 +72,11 @@ impl TypingState {
     pub fn value(&self) -> u32 {
         self.value
     }
-    
+
+    pub fn words_typed(&self) -> u32 {
+        self.input.split_whitespace().count() as u32
+    }
+
     pub fn append_text(&mut self, more:&str) {
         if more.is_empty() {
             return;
@@ -80,14 +86,38 @@ impl TypingState {
         }
         self.text.push_str(more);
     }
-    
-    pub fn is_finished(&self) -> bool {
+
+    pub fn is_finished(&self, mode: RaceMode) -> bool {
         let Some(start) = self.start_time else { return false };
         let elapsed = start.elapsed().as_secs_f64();
-        
-        elapsed >= self.value as f64
+        let cursor = self.cursor();
+        let text_len = self.text.chars().count();
+
+        match mode {
+            RaceMode::Time => elapsed >= self.value as f64,
+            RaceMode::Words => !self.has_unfixed_error() && cursor >= text_len,
+        }
     }
-    
+
+    pub fn progress_ratio(&self, mode: RaceMode) -> f64 {
+        match mode {
+            RaceMode::Time => {
+                let v = self.value as f64;
+                if v <= 0.0 {
+                    return 1.0;
+                }
+                (self.elapsed_secs() / v).min(1.0)
+            }
+            RaceMode::Words => {
+                let goal = self.value;
+                if goal == 0 {
+                    return 1.0;
+                }
+                (self.words_typed().min(goal) as f64 / goal as f64).min(1.0)
+            }
+        }
+    }
+
     pub fn correct_chars(&self) -> usize {
         let expected: Vec<char> = self.text.chars().collect();
         let actual: Vec<char> = self.input.chars().collect();
