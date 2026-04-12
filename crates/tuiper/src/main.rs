@@ -50,7 +50,7 @@ fn run_app(
                             break;
                         }
                         KeyCode::Char('s') | KeyCode::Char('S') => {
-                            app.start_race(30);
+                            app.start_race(app.lobby_value());
                         }
                         KeyCode::Char('f') | KeyCode::Char('F') => {
                             let value = 30;
@@ -73,6 +73,12 @@ fn run_app(
                         },
                         KeyCode::BackTab => {
                             app.cycle_mode(-1);
+                        }
+                        KeyCode::Left => {
+                            app.cycle_length(-1);
+                        }
+                        KeyCode::Right => {
+                            app.cycle_length(1);
                         }
                         _ => {}
                     },
@@ -111,8 +117,7 @@ fn run_app(
                                 }
                                 KeyCode::Tab | KeyCode::Enter => {
                                     if !is_multi {
-                                        let value = t.value();
-                                        app.start_race(value);
+                                        app.start_race(app.lobby_value());
                                     }
                                 }
                                 _ => {}
@@ -131,8 +136,8 @@ fn run_app(
                             break;
                         }
                         KeyCode::Tab | KeyCode::Enter => {
-                            let value = 30;
                             if app.race_results.is_some() {
+                                let value = 30;
                                 if let Some(ref tx) = app.ws_tx {
                                     let _ = tx.send(ClientMessage::JoinQueue { value });
                                 } else {
@@ -142,7 +147,7 @@ fn run_app(
                                     let _ = app_tx.send(ClientMessage::JoinQueue { value });
                                 }
                             } else {
-                                app.start_race(value);
+                                app.start_race(app.lobby_value());
                             }
                         }
                         _ => {}
