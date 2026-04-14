@@ -77,7 +77,7 @@ impl TypingState {
         self.input.split_whitespace().count() as u32
     }
 
-    pub fn append_text(&mut self, more:&str) {
+    pub fn append_text(&mut self, more: &str) {
         if more.is_empty() {
             return;
         }
@@ -88,7 +88,9 @@ impl TypingState {
     }
 
     pub fn is_finished(&self, mode: RaceMode) -> bool {
-        let Some(start) = self.start_time else { return false };
+        let Some(start) = self.start_time else {
+            return false;
+        };
         let elapsed = start.elapsed().as_secs_f64();
         let cursor = self.cursor();
         let text_len = self.text.chars().count();

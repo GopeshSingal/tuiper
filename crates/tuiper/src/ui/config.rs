@@ -98,13 +98,11 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
     let preview_line2 = line_from_typing(
         theme,
         "jumped over the lazy dog".chars().enumerate(),
-        |i| {
-            match i {
-                0..=1 => (CharState::Correct, false),
-                2 => (CharState::Incorrect, false),
-                3 => (CharState::Current, true),
-                _ => (CharState::Untyped, false),
-            }
+        |i| match i {
+            0..=1 => (CharState::Correct, false),
+            2 => (CharState::Incorrect, false),
+            3 => (CharState::Current, true),
+            _ => (CharState::Untyped, false),
         },
         Some(0),
     );

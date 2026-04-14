@@ -5,9 +5,9 @@ use std::fs;
 use std::io;
 use std::path::PathBuf;
 
-use dirs::{config_dir};
-use ratatui::style::{Color};
+use dirs::config_dir;
 use ratatui::style::palette::tailwind;
+use ratatui::style::Color;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_str, to_string_pretty};
 use strum::{Display, EnumIter, IntoEnumIterator};
@@ -166,12 +166,14 @@ pub fn load() -> Theme {
 }
 
 pub fn save(theme: &Theme) -> io::Result<()> {
-    let Some(path) = theme_config_path() else { return Ok(()); };
+    let Some(path) = theme_config_path() else {
+        return Ok(());
+    };
     if let Some(dir) = path.parent() {
         fs::create_dir_all(dir)?;
     }
-    let json = to_string_pretty(theme)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let json =
+        to_string_pretty(theme).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     fs::write(path, json)
 }
 
@@ -179,7 +181,9 @@ mod color_map_serde {
     use super::*;
 
     pub fn serialize<S>(map: &HashMap<ThemeField, Color>, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer {
+    where
+        S: Serializer,
+    {
         use serde::ser::SerializeMap;
         let mut state = serializer.serialize_map(Some(map.len()))?;
         for (k, v) in map {
@@ -189,7 +193,9 @@ mod color_map_serde {
     }
 
     pub fn deserialize<'de, D>(deserializer: D) -> Result<HashMap<ThemeField, Color>, D::Error>
-    where D: Deserializer<'de> {
+    where
+        D: Deserializer<'de>,
+    {
         let map_raw = HashMap::<String, String>::deserialize(deserializer)?;
         let mut map = HashMap::new();
         for field in ThemeField::iter() {

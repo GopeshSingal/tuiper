@@ -34,7 +34,10 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             Line::from(vec![
                 Span::styled("Opponent: ", base_style(theme).fg(Color::Cyan)),
                 Span::styled(
-                    format!("{:.0} WPM  {:.1}% acc", res.opponent.wpm, res.opponent.accuracy),
+                    format!(
+                        "{:.0} WPM  {:.1}% acc",
+                        res.opponent.wpm, res.opponent.accuracy
+                    ),
                     base_style(theme),
                 ),
             ]),

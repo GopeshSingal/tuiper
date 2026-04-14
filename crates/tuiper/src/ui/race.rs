@@ -149,7 +149,12 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
     let line = line_from_typing(
         theme,
         text_chars.iter().cloned().enumerate(),
-        |i| (states.get(i).copied().unwrap_or(CharState::Untyped), pending_error),
+        |i| {
+            (
+                states.get(i).copied().unwrap_or(CharState::Untyped),
+                pending_error,
+            )
+        },
         opponent_cursor_idx,
     );
 

@@ -38,10 +38,9 @@ pub enum ServerMessage {
         results: RaceResults,
     },
     Error {
-        message: String
+        message: String,
     },
 }
-
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RaceResults {
