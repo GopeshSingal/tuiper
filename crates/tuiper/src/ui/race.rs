@@ -134,10 +134,39 @@ fn render_race_middle(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
     }
 }
 
+fn current_word_range(text_chars: &[char], cursor: usize) -> Option<std::ops::Range<usize>> {
+    if text_chars.is_empty() {
+        return None;
+    }
+
+    let mut idx = cursor.min(text_chars.len().saturating_sub(1));
+    if text_chars[idx] == ' ' {
+        while idx > 0 && text_chars[idx] == ' ' {
+            idx -= 1;
+        }
+        if text_chars[idx] == ' ' {
+            return None;
+        }
+    }
+
+    let mut start = idx;
+    while start > 0 && text_chars[start - 1] != ' ' {
+        start -= 1;
+    }
+
+    let mut end = idx + 1;
+    while end < text_chars.len() && text_chars[end] != ' ' {
+        end += 1;
+    }
+
+    (start < end).then_some(start..end)
+}
+
 fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState, area: Rect) {
     let states = t.char_states();
     let pending_error = t.has_unfixed_error();
     let text_chars: Vec<char> = t.text().chars().collect();
+    let current_word = current_word_range(&text_chars, t.cursor());
 
     let opponent_cursor_idx = if app.is_multi() && !app.is_waiting_for_multiplayer_start() {
         let oc = app.opponent_chars as usize;
@@ -156,6 +185,7 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
             )
         },
         opponent_cursor_idx,
+        current_word,
     );
 
     let block = default_block("Type here", theme);

@@ -9,7 +9,12 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Axis, Chart, Dataset, GraphType, Paragraph, Wrap};
 use ratatui::Frame;
 
-fn draw_wpm_chart(frame: &mut Frame, theme: &Theme, area: ratatui::layout::Rect, r: &crate::typing::TypingStats) {
+fn draw_wpm_chart(
+    frame: &mut Frame,
+    theme: &Theme,
+    area: ratatui::layout::Rect,
+    r: &crate::typing::TypingStats,
+) {
     if r.wpm_history.is_empty() {
         frame.render_widget(
             Paragraph::new("Not enough typing data to plot WPM graph.")
@@ -93,7 +98,12 @@ fn draw_wpm_chart(frame: &mut Frame, theme: &Theme, area: ratatui::layout::Rect,
     let y_labels = y_label_values
         .into_iter()
         .rev()
-        .map(|v| Span::styled(format!("{:.0}", v), base_style(theme).fg(theme.get(ThemeField::Untyped))))
+        .map(|v| {
+            Span::styled(
+                format!("{:.0}", v),
+                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+            )
+        })
         .collect::<Vec<_>>();
 
     let mut plot_points = r.wpm_history.clone();
