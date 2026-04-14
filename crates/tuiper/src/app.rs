@@ -143,8 +143,10 @@ impl App {
             RaceEnd { results } => {
                 self.multiplayer_race = false;
                 self.race_results = Some(results);
+                if self.result.is_none() {
+                    self.result = self.typing.as_ref().map(TypingState::final_stats);
+                }
                 self.typing = None;
-                self.result = None;
                 self.multiplayer_start_at_unix_ms = None;
                 self.screen = Screen::Results;
             }
