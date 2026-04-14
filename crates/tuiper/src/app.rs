@@ -25,7 +25,7 @@ pub enum RaceMode {
 
 const REFILL_THRESHOLD: usize = 10;
 
-pub const WORDS_PRESETS: [u32; 3] = [25, 50, 100];
+pub const WORDS_PRESETS: [u32; 4] = [10, 25, 50, 100];
 pub const TIME_PRESETS: [u32; 3] = [15, 30, 60];
 
 pub struct App {
@@ -86,7 +86,7 @@ impl App {
             theme_edit_col: ThemeEditColumn::default(),
 
             // race mode
-            mode: RaceMode::Words,
+            mode: RaceMode::Time,
             words_preset_idx: 1,
             time_preset_idx: 1,
         }
