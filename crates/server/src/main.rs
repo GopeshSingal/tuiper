@@ -1,8 +1,8 @@
 use common::{now_unix_ms, MULTIPLAYER_GRACE_PERIOD_SECS};
 use protocols::{ClientMessage, PlayerResult, RaceResults, ServerMessage, Winner};
 
-use axum::extract::State;
 use axum::extract::ws::{Message, WebSocket, WebSocketUpgrade};
+use axum::extract::State;
 use axum::response::Response;
 use axum::routing::get;
 use std::collections::HashMap;
@@ -62,7 +62,11 @@ async fn ws_handler(ws: WebSocketUpgrade, State(state): State<SharedState>) -> R
 async fn handle_socket(mut socket: WebSocket, state: SharedState) {
     let (tx, mut rx) = mpsc::channel::<ServerMessage>(OUTBOUND_CHANNEL_CAPACITY);
     let conn_id = NEXT_CONN_ID.fetch_add(1, Ordering::Relaxed);
-    state.connection_txs.write().await.insert(conn_id, tx.clone());
+    state
+        .connection_txs
+        .write()
+        .await
+        .insert(conn_id, tx.clone());
     let mut queue_key: Option<u32> = None;
 
     loop {
@@ -172,7 +176,7 @@ async fn handle_socket(mut socket: WebSocket, state: SharedState) {
                                 Err(_) => break,
                             }
                         }
-                        
+
                         if let Ok(json) = serde_json::to_string(&latest) {
                             if socket.send(Message::Text(json.into())).await.is_err() {
                                 break;
@@ -247,7 +251,8 @@ async fn try_match(state: &SharedState, key: u32) {
 
     let race_id = uuid::Uuid::new_v4().to_string();
     let seed = rand::random::<u64>();
-    let start_at_unix_ms = now_unix_ms().saturating_add(MULTIPLAYER_GRACE_PERIOD_SECS.saturating_mul(1000));
+    let start_at_unix_ms =
+        now_unix_ms().saturating_add(MULTIPLAYER_GRACE_PERIOD_SECS.saturating_mul(1000));
     let start1 = ServerMessage::RaceStart {
         race_id: race_id.clone(),
         value,
@@ -261,8 +266,16 @@ async fn try_match(state: &SharedState, key: u32) {
         start_at_unix_ms,
     };
 
-    state.races.write().await.insert(race_id.clone(), (uid1, uid2));
-    state.race_results.write().await.insert(race_id, (None, None));
+    state
+        .races
+        .write()
+        .await
+        .insert(race_id.clone(), (uid1, uid2));
+    state
+        .race_results
+        .write()
+        .await
+        .insert(race_id, (None, None));
 
     let _ = tx1.send(start1).await;
     let _ = tx2.send(start2).await;
@@ -274,7 +287,7 @@ async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2:
     } else {
         Some(Winner::Opponent)
     };
-    
+
     let results1 = RaceResults {
         me: r1.clone(),
         opponent: r2.clone(),
@@ -292,7 +305,9 @@ async fn send_race_end(state: &SharedState, race_id: &str, r1: PlayerResult, r2:
     let (tx1, tx2) = {
         let races = state.races.read().await;
         let txs = state.connection_txs.read().await;
-        let Some((uid1, uid2)) = races.get(race_id) else { return };
+        let Some((uid1, uid2)) = races.get(race_id) else {
+            return;
+        };
         let Some(tx1) = txs.get(uid1) else { return };
         let Some(tx2) = txs.get(uid2) else { return };
         (tx1.clone(), tx2.clone())

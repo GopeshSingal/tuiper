@@ -3,8 +3,8 @@ use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk, generate_words_text};
 
 use common::now_unix_ms;
-use protocols::{ClientMessage, RaceResults, ServerMessage};
 use protocols::ServerMessage::*;
+use protocols::{ClientMessage, RaceResults, ServerMessage};
 
 use std::sync::mpsc;
 
@@ -111,12 +111,12 @@ impl App {
         if delta > 0 {
             self.mode = match self.mode {
                 RaceMode::Time => RaceMode::Words,
-                RaceMode::Words => RaceMode::Time
+                RaceMode::Words => RaceMode::Time,
             }
         } else {
             self.mode = match self.mode {
                 RaceMode::Time => RaceMode::Words,
-                RaceMode::Words => RaceMode::Time
+                RaceMode::Words => RaceMode::Time,
             }
         }
     }
@@ -126,7 +126,12 @@ impl App {
             Queue => {
                 self.screen = Screen::Queue;
             }
-            RaceStart { race_id: _, value, seed, start_at_unix_ms } => {
+            RaceStart {
+                race_id: _,
+                value,
+                seed,
+                start_at_unix_ms,
+            } => {
                 self.start_multiplayer(seed, value, start_at_unix_ms);
             }
             OpponentProgress { wpm, chars_typed } => {
@@ -204,7 +209,8 @@ impl App {
                     let cursor_words = t.input().split_whitespace().count();
                     let words_ahead = text_words.saturating_sub(cursor_words);
                     if words_ahead <= REFILL_THRESHOLD {
-                        if let Some(chunk) = generate_next_chunk(seed, t.value(), self.words_so_far) {
+                        if let Some(chunk) = generate_next_chunk(seed, t.value(), self.words_so_far)
+                        {
                             if !chunk.is_empty() {
                                 t.append_text(&chunk);
                                 self.words_so_far += chunk.split_whitespace().count() as u32;
@@ -276,7 +282,10 @@ impl App {
 
     pub fn is_waiting_for_multiplayer_start(&self) -> bool {
         self.is_multi()
-            && self.typing.as_ref().is_some_and(|t| t.start_time().is_none())
+            && self
+                .typing
+                .as_ref()
+                .is_some_and(|t| t.start_time().is_none())
             && self.multiplayer_start_at_unix_ms.is_some()
     }
 

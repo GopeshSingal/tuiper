@@ -70,7 +70,7 @@ fn run_app(
                         }
                         KeyCode::Tab => {
                             app.cycle_mode(1);
-                        },
+                        }
                         KeyCode::BackTab => {
                             app.cycle_mode(-1);
                         }
@@ -218,7 +218,11 @@ fn run_app(
 fn main() -> io::Result<()> {
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
-    crossterm::execute!(stdout, crossterm::terminal::EnterAlternateScreen, crossterm::event::EnableMouseCapture)?;
+    crossterm::execute!(
+        stdout,
+        crossterm::terminal::EnterAlternateScreen,
+        crossterm::event::EnableMouseCapture
+    )?;
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
@@ -228,7 +232,11 @@ fn main() -> io::Result<()> {
 
     let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx);
 
-    crossterm::execute!(terminal.backend_mut(), crossterm::terminal::LeaveAlternateScreen, crossterm::event::DisableMouseCapture)?;
+    crossterm::execute!(
+        terminal.backend_mut(),
+        crossterm::terminal::LeaveAlternateScreen,
+        crossterm::event::DisableMouseCapture
+    )?;
     crossterm::terminal::disable_raw_mode()?;
     terminal.show_cursor()?;
 
