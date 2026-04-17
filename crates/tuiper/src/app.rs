@@ -7,6 +7,7 @@ use protocols::ServerMessage::*;
 use protocols::{ClientMessage, RaceResults, ServerMessage};
 
 use std::sync::mpsc;
+use std::time::Instant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
@@ -25,7 +26,7 @@ pub enum RaceMode {
 
 const REFILL_THRESHOLD: usize = 10;
 
-pub const WORDS_PRESETS: [u32; 3] = [25, 50, 100];
+pub const WORDS_PRESETS: [u32; 4] = [10, 25, 50, 100];
 pub const TIME_PRESETS: [u32; 3] = [15, 30, 60];
 
 pub struct App {
@@ -42,8 +43,11 @@ pub struct App {
     // multiplayer
     pub ws_tx: Option<mpsc::Sender<ClientMessage>>,
     multiplayer_race: bool,
+    multiplayer_session_active: bool,
+    multiplayer_race_t0: Option<Instant>,
     pub opponent_wpm: f64,
     pub opponent_chars: u32,
+    pub opponent_wpm_history: Vec<(f64, f64)>,
     pub last_progress_sent: f64,
     pub race_results: Option<RaceResults>,
     pub multiplayer_start_at_unix_ms: Option<u64>,
@@ -74,8 +78,11 @@ impl App {
             // multiplayer
             ws_tx: None,
             multiplayer_race: false,
+            multiplayer_session_active: false,
+            multiplayer_race_t0: None,
             opponent_wpm: 0.0,
             opponent_chars: 0,
+            opponent_wpm_history: Vec::new(),
             last_progress_sent: 0.0,
             race_results: None,
             multiplayer_start_at_unix_ms: None,
@@ -86,7 +93,7 @@ impl App {
             theme_edit_col: ThemeEditColumn::default(),
 
             // race mode
-            mode: RaceMode::Words,
+            mode: RaceMode::Time,
             words_preset_idx: 1,
             time_preset_idx: 1,
         }
@@ -135,21 +142,47 @@ impl App {
                 self.start_multiplayer(seed, value, start_at_unix_ms);
             }
             OpponentProgress { wpm, chars_typed } => {
-                if self.multiplayer_race {
+                if self.multiplayer_session_active {
                     self.opponent_wpm = wpm;
                     self.opponent_chars = chars_typed;
+                    if let Some(t0) = self.multiplayer_race_t0 {
+                        let secs = t0.elapsed().as_secs_f64();
+                        if self.opponent_wpm_history.last().map_or(true, |last| {
+                            (last.0 - secs).abs() > 0.05 || (last.1 - wpm).abs() > 0.01
+                        }) {
+                            self.opponent_wpm_history.push((secs, wpm));
+                        }
+                    }
                 }
             }
             RaceEnd { results } => {
                 self.multiplayer_race = false;
+                if self.multiplayer_session_active {
+                    if let Some(t0) = self.multiplayer_race_t0 {
+                        let secs = t0.elapsed().as_secs_f64();
+                        let ow = results.opponent.wpm;
+                        if self.opponent_wpm_history.last().map_or(true, |last| {
+                            (last.1 - ow).abs() > 0.1 || (last.0 - secs).abs() > 0.01
+                        }) {
+                            self.opponent_wpm_history.push((secs, ow));
+                        }
+                    }
+                }
+                self.multiplayer_session_active = false;
+                self.multiplayer_race_t0 = None;
                 self.race_results = Some(results);
+                if self.result.is_none() {
+                    self.result = self.typing.as_ref().map(TypingState::final_stats);
+                }
                 self.typing = None;
-                self.result = None;
                 self.multiplayer_start_at_unix_ms = None;
                 self.screen = Screen::Results;
             }
             Error { message: _ } => {
                 self.multiplayer_race = false;
+                self.multiplayer_session_active = false;
+                self.multiplayer_race_t0 = None;
+                self.opponent_wpm_history.clear();
                 self.disconnect_websocket();
                 self.screen = Screen::Lobby;
             }
@@ -158,6 +191,9 @@ impl App {
 
     pub fn start_race(&mut self, value: u32) {
         self.multiplayer_race = false;
+        self.multiplayer_session_active = false;
+        self.multiplayer_race_t0 = None;
+        self.opponent_wpm_history.clear();
         self.result = None;
         self.race_results = None;
         self.screen = Screen::Race;
@@ -178,10 +214,13 @@ impl App {
 
     pub fn start_multiplayer(&mut self, seed: u64, value: u32, start_at_unix_ms: u64) {
         self.multiplayer_race = true;
+        self.multiplayer_session_active = true;
+        self.multiplayer_race_t0 = None;
         self.result = None;
         self.race_results = None;
         self.opponent_wpm = 0.0;
         self.opponent_chars = 0;
+        self.opponent_wpm_history.clear();
         self.last_progress_sent = 0.0;
         self.multiplayer_start_at_unix_ms = Some(start_at_unix_ms);
         self.screen = Screen::Race;
@@ -199,6 +238,9 @@ impl App {
             if let Some(start_at_unix_ms) = self.multiplayer_start_at_unix_ms {
                 if t.start_time().is_none() && now_unix_ms() >= start_at_unix_ms {
                     t.start();
+                    if self.multiplayer_race_t0.is_none() {
+                        self.multiplayer_race_t0 = Some(Instant::now());
+                    }
                 }
             }
             t.sample_raw_wpm();

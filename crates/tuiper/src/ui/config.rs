@@ -94,6 +94,7 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
             (state, false)
         },
         Some(8),
+        None,
     );
     let preview_line2 = line_from_typing(
         theme,
@@ -105,6 +106,7 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
             _ => (CharState::Untyped, false),
         },
         Some(0),
+        None,
     );
 
     let preview_block = Block::default()

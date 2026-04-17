@@ -19,6 +19,7 @@ pub struct TypingStats {
     pub chars_typed: u32,
     pub correct_chars: u32,
     pub duration_secs: f64,
+    pub wpm_history: Vec<(f64, f64)>,
 }
 
 pub struct TypingState {
@@ -29,6 +30,7 @@ pub struct TypingState {
     total_keypresses: u32,
     correct_keypresses: u32,
     raw_wpm_samples: Vec<f64>,
+    wpm_samples: Vec<(f64, f64)>,
     last_sample_time: Option<Instant>,
 }
 
@@ -42,6 +44,7 @@ impl TypingState {
             total_keypresses: 0,
             correct_keypresses: 0,
             raw_wpm_samples: Vec::new(),
+            wpm_samples: Vec::new(),
             last_sample_time: None,
         }
     }
@@ -193,6 +196,7 @@ impl TypingState {
             .unwrap_or(true);
         if do_sample {
             self.raw_wpm_samples.push(self.raw_wpm());
+            self.wpm_samples.push((elapsed.as_secs_f64(), self.wpm()));
             self.last_sample_time = Some(Instant::now());
         }
     }
@@ -275,14 +279,25 @@ impl TypingState {
     }
 
     pub fn final_stats(&self) -> TypingStats {
+        let duration_secs = self.elapsed_secs();
+        let final_wpm = self.wpm();
+        let mut wpm_history = self.wpm_samples.clone();
+        if wpm_history
+            .last()
+            .is_none_or(|(secs, wpm)| *secs < duration_secs || (*wpm - final_wpm).abs() > 0.1)
+        {
+            wpm_history.push((duration_secs, final_wpm));
+        }
+
         TypingStats {
-            wpm: self.wpm(),
+            wpm: final_wpm,
             raw_wpm: self.raw_wpm(),
             accuracy: self.accuracy(),
             consistency: self.consistency(),
             chars_typed: self.cursor() as u32,
             correct_chars: self.correct_chars() as u32,
-            duration_secs: self.elapsed_secs(),
+            duration_secs,
+            wpm_history,
         }
     }
 }

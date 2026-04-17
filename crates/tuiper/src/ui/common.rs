@@ -72,15 +72,20 @@ pub(super) fn line_from_typing(
     indexed_chars: impl Iterator<Item = (usize, char)>,
     at: impl Fn(usize) -> (CharState, bool),
     opponent_cursor_idx: Option<usize>,
+    current_word_range: Option<std::ops::Range<usize>>,
 ) -> Line<'_> {
     Line::from(
         indexed_chars
             .map(|(i, c)| {
                 let (state, pe) = at(i);
-                Span::styled(
-                    c.to_string(),
-                    typing_char_style(theme, state, pe, opponent_cursor_idx, i),
-                )
+                let mut style = typing_char_style(theme, state, pe, opponent_cursor_idx, i);
+                if current_word_range
+                    .as_ref()
+                    .is_some_and(|range| range.contains(&i))
+                {
+                    style = style.add_modifier(Modifier::BOLD);
+                }
+                Span::styled(c.to_string(), style)
             })
             .collect::<Vec<Span>>(),
     )
