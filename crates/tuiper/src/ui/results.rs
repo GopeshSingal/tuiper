@@ -192,14 +192,15 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             ])
             .split(inner);
 
-        let winner_str = match &res.winner {
-            Some(protocols::Winner::Me) => "You won :)",
-            Some(protocols::Winner::Opponent) => "You lost :(",
-            None => "",
+        let winner_span = match &res.winner {
+            Some(protocols::Winner::Me) => Span::styled("You won :)", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
+            Some(protocols::Winner::Opponent) => Span::styled("You lost :(", base_style(theme).fg(theme.get(ThemeField::TypedIncorrect))),
+            None => Span::styled("", base_style(theme).fg(Color::Cyan))
         };
+
         let text = vec![
             Line::from(""),
-            Line::from(Span::styled(winner_str, base_style(theme).fg(Color::Green))),
+            Line::from(winner_span),
             Line::from(""),
             Line::from(vec![
                 Span::styled("You: ", base_style(theme).fg(Color::Cyan)),
