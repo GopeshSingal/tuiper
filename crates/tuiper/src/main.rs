@@ -128,6 +128,7 @@ fn run_app(
                         KeyCode::Char('q') => {
                             app.result = None;
                             app.race_results = None;
+                            app.opponent_wpm_history.clear();
                             app.disconnect_websocket();
                             app.screen = Screen::Lobby;
                         }

@@ -13,9 +13,15 @@ fn draw_wpm_chart(
     frame: &mut Frame,
     theme: &Theme,
     area: ratatui::layout::Rect,
-    r: &crate::typing::TypingStats,
+    local: Option<&crate::typing::TypingStats>,
+    opponent_history: Option<&[(f64, f64)]>,
 ) {
-    if r.wpm_history.is_empty() {
+    let local_hist = local
+        .filter(|r| !r.wpm_history.is_empty())
+        .map(|r| r.wpm_history.as_slice());
+    let opp_hist = opponent_history.filter(|h| !h.is_empty());
+
+    if local_hist.is_none() && opp_hist.is_none() {
         frame.render_widget(
             Paragraph::new("Not enough typing data to plot WPM graph.")
                 .style(base_style(theme))
@@ -25,12 +31,14 @@ fn draw_wpm_chart(
         return;
     }
 
-    let x_data_max = r
-        .wpm_history
-        .iter()
-        .map(|(secs, _)| *secs)
-        .fold(0.0_f64, f64::max)
-        .max(1.0);
+    let mut x_data_max = 1.0_f64;
+    if let Some(h) = local_hist {
+        x_data_max = x_data_max.max(h.iter().map(|(secs, _)| *secs).fold(0.0_f64, f64::max));
+    }
+    if let Some(h) = opp_hist {
+        x_data_max = x_data_max.max(h.iter().map(|(secs, _)| *secs).fold(0.0_f64, f64::max));
+    }
+    x_data_max = x_data_max.max(1.0);
 
     let rounded_15 = (x_data_max / 15.0).round() * 15.0;
     let snap_to_15 = rounded_15 >= 15.0 && (x_data_max - rounded_15).abs() <= 1.5;
@@ -55,7 +63,6 @@ fn draw_wpm_chart(
                 format!("{:.1}", x_axis_min),
                 base_style(theme).fg(theme.get(ThemeField::Untyped)),
             ),
-            // For word mode (or any non-15 finish), allow a non-15 end label only.
             Span::styled(
                 format!("{:.1}", x_data_max),
                 base_style(theme).fg(theme.get(ThemeField::Untyped)),
@@ -63,17 +70,24 @@ fn draw_wpm_chart(
         ]
     };
 
-    let max_wpm = r
-        .wpm_history
-        .iter()
-        .map(|(_, wpm)| *wpm)
-        .fold(0.0_f64, f64::max);
-    let min_non_zero_wpm = r
-        .wpm_history
-        .iter()
-        .map(|(_, wpm)| *wpm)
-        .filter(|wpm| *wpm > 0.0)
-        .fold(f64::INFINITY, f64::min);
+    let mut max_wpm = 0.0_f64;
+    let mut min_non_zero_wpm = f64::INFINITY;
+    if let Some(h) = local_hist {
+        for (_, wpm) in h.iter() {
+            max_wpm = max_wpm.max(*wpm);
+            if *wpm > 0.0 {
+                min_non_zero_wpm = min_non_zero_wpm.min(*wpm);
+            }
+        }
+    }
+    if let Some(h) = opp_hist {
+        for (_, wpm) in h.iter() {
+            max_wpm = max_wpm.max(*wpm);
+            if *wpm > 0.0 {
+                min_non_zero_wpm = min_non_zero_wpm.min(*wpm);
+            }
+        }
+    }
     let y_min = if min_non_zero_wpm.is_finite() {
         (min_non_zero_wpm - 5.0).max(0.0)
     } else {
@@ -106,21 +120,45 @@ fn draw_wpm_chart(
         })
         .collect::<Vec<_>>();
 
-    let mut plot_points = r.wpm_history.clone();
-    if plot_points.last().is_some() {
-        if let Some(last) = plot_points.last_mut() {
-            last.0 = x_axis_max;
+    let local_plot = local_hist.map(|h| {
+        let mut pts = h.to_vec();
+        if pts.last().is_some() {
+            if let Some(last) = pts.last_mut() {
+                last.0 = x_axis_max;
+            }
         }
+        pts
+    });
+    let opp_plot = opp_hist.map(|h| h.to_vec());
+
+    let title = if opp_hist.is_some() {
+        "WPM Over Time (you vs opponent)"
+    } else {
+        "WPM Over Time"
+    };
+
+    let mut datasets = Vec::new();
+    if let Some(ref pts) = local_plot {
+        datasets.push(
+            Dataset::default()
+                .marker(ratatui::symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(base_style(theme).fg(theme.get(ThemeField::TypedCorrect)))
+                .data(pts.as_slice()),
+        );
+    }
+    if let Some(ref pts) = opp_plot {
+        datasets.push(
+            Dataset::default()
+                .marker(ratatui::symbols::Marker::Braille)
+                .graph_type(GraphType::Line)
+                .style(base_style(theme).fg(theme.get(ThemeField::TypedIncorrect)))
+                .data(pts.as_slice()),
+        );
     }
 
-    let dataset = Dataset::default()
-        .marker(ratatui::symbols::Marker::Braille)
-        .graph_type(GraphType::Line)
-        .style(base_style(theme).fg(theme.get(ThemeField::TypedCorrect)))
-        .data(&plot_points);
-
-    let chart = Chart::new(vec![dataset])
-        .block(default_block("WPM Over Time", theme))
+    let chart = Chart::new(datasets)
+        .block(default_block(title, theme))
         .style(base_style(theme))
         .x_axis(
             Axis::default()
@@ -184,8 +222,14 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
         ];
         frame.render_widget(default_paragraph(text, theme), chunks[0]);
 
-        if let Some(r) = app.result() {
-            draw_wpm_chart(frame, theme, chunks[1], r);
+        if app.result().is_some() || !app.opponent_wpm_history.is_empty() {
+            draw_wpm_chart(
+                frame,
+                theme,
+                chunks[1],
+                app.result(),
+                Some(app.opponent_wpm_history.as_slice()),
+            );
         } else {
             frame.render_widget(
                 Paragraph::new("No local WPM history available.")
@@ -240,7 +284,7 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             chunks[0],
         );
 
-        draw_wpm_chart(frame, theme, chunks[1], r);
+        draw_wpm_chart(frame, theme, chunks[1], Some(r), None);
         frame.render_widget(
             Paragraph::new("Tab / Enter: try again    Q: lobby")
                 .style(base_style(theme).fg(Color::DarkGray)),
