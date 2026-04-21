@@ -226,6 +226,33 @@ impl TypingState {
         true
     }
 
+    pub fn backspace_word(&mut self) -> bool {
+        if self.input.is_empty() {
+            return false;
+        }
+        self.start();
+
+        let mut removed_any = false;
+
+        while let Some(last) = self.input.chars().last() {
+            if !last.is_whitespace() {
+                break;
+            }
+            self.input.pop();
+            removed_any = true;
+        }
+
+        while let Some(last) = self.input.chars().last() {
+            if last.is_whitespace() {
+                break;
+            }
+            self.input.pop();
+            removed_any = true;
+        }
+
+        removed_any
+    }
+
     pub fn has_unfixed_error(&self) -> bool {
         let expected: Vec<char> = self.text.chars().collect();
         let actual: Vec<char> = self.input.chars().collect();

@@ -8,7 +8,7 @@ mod words;
 use app::{App, Screen};
 use theme::{ThemeEditColumn, ThemeField};
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::io;
@@ -107,7 +107,11 @@ fn run_app(
                                 }
                                 KeyCode::Backspace => {
                                     if !waiting_for_start {
-                                        t.backspace();
+                                        if key.modifiers.contains(KeyModifiers::ALT) {
+                                            t.backspace_word();
+                                        } else {
+                                            t.backspace();
+                                        }
                                     }
                                 }
                                 KeyCode::Char(c) => {
