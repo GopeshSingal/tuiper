@@ -1,6 +1,7 @@
 mod constants;
 
 use std::collections::HashMap;
+use std::default;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -18,6 +19,8 @@ use constants::{PALETTE_NAMES, SHADE_NAMES, TAILWIND_GRID};
 pub enum ThemeField {
     #[strum(serialize = "window background")]
     WindowBg,
+    #[strum(serialize = "window background")]
+    BaseText,
     #[strum(serialize = "untyped text")]
     Untyped,
     #[strum(serialize = "typed correct")]
@@ -42,6 +45,7 @@ impl ThemeField {
     pub fn label(self) -> &'static str {
         match self {
             Self::WindowBg => "window background",
+            Self::BaseText => "base text",
             Self::Untyped => "untyped text",
             Self::TypedCorrect => "typed correct",
             Self::TypedIncorrect => "typed incorrect",
@@ -88,6 +92,7 @@ impl Default for Theme {
     fn default() -> Self {
         let mut fields = HashMap::new();
         fields.insert(ThemeField::WindowBg, tailwind::SLATE.c800);
+        fields.insert(ThemeField::BaseText, tailwind::SLATE.c200);
         fields.insert(ThemeField::Untyped, tailwind::GRAY.c400);
         fields.insert(ThemeField::TypedCorrect, tailwind::INDIGO.c400);
         fields.insert(ThemeField::TypedIncorrect, tailwind::RED.c400);
@@ -105,7 +110,10 @@ impl Default for Theme {
 
 impl Theme {
     pub fn get(&self, field: ThemeField) -> Color {
-        *self.fields.get(&field).unwrap_or(&Color::Reset)
+        self.fields
+            .get(&field)
+            .copied()
+            .unwrap_or_else(|| Self::default_color(field))
     }
 
     pub fn set(&mut self, field: ThemeField, c: Color) {
@@ -138,6 +146,21 @@ impl Theme {
 
     pub fn reset(&mut self) {
         *self = Self::default();
+    }
+
+    fn default_color(field: ThemeField) -> Color {
+        match field {
+            ThemeField::WindowBg => tailwind::SLATE.c800,
+            ThemeField::BaseText => tailwind::SLATE.c200,
+            ThemeField::Untyped => tailwind::GRAY.c400,
+            ThemeField::TypedCorrect => tailwind::INDIGO.c400,
+            ThemeField::TypedIncorrect => tailwind::RED.c400,
+            ThemeField::CursorBg => tailwind::GRAY.c900,
+            ThemeField::CursorFg => tailwind::GRAY.c50,
+            ThemeField::CursorFgError => tailwind::RED.c400,
+            ThemeField::OppCursorBg => tailwind::VIOLET.c400,
+            ThemeField::OppCursorFg => tailwind::GRAY.c50,
+        }
     }
 
     fn get_grid_pos(&self, field: ThemeField) -> Option<(usize, usize)> {

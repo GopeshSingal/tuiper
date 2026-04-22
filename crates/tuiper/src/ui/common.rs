@@ -6,7 +6,9 @@ use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
 pub(super) fn base_style(theme: &Theme) -> Style {
-    Style::default().bg(theme.get(ThemeField::WindowBg))
+    Style::default()
+        .bg(theme.get(ThemeField::WindowBg))
+        .fg(theme.get(ThemeField::BaseText))
 }
 
 fn typing_char_style(
