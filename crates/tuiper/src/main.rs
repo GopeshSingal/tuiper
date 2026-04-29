@@ -11,6 +11,7 @@ use theme::{ThemeEditColumn, ThemeField};
 
 use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use dotenvy::dotenv;
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
 use std::io;
@@ -253,6 +254,7 @@ fn run_app(
 }
 
 fn main() -> io::Result<()> {
+    dotenv().ok();
     let cli = Cli::parse();
     validate_cli(&cli);
     let auth_result = match (&cli.user, &cli.password) {

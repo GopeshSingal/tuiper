@@ -40,3 +40,4 @@ strum = {
         features = ["derive"]
 }
 dirs = "6.0.0"
+dotenvy = "0.15.7"
