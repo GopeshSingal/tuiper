@@ -255,7 +255,7 @@ fn run_app(
 fn main() -> io::Result<()> {
     let cli = Cli::parse();
     validate_cli(&cli);
-    let auth_token = match (&cli.user, &cli.password) {
+    let auth_result = match (&cli.user, &cli.password) {
         (Some(user), Some(password)) => {
             let auth_url = match auth::auth_url_for_ws_url(&ws_url()) {
                 Ok(url) => url,
@@ -265,7 +265,7 @@ fn main() -> io::Result<()> {
                 }
             };
             match auth::login(&auth_url, user.trim(), password) {
-                Ok(token) => Some(token),
+                Ok(result) => Some(result),
                 Err(e) => {
                     eprintln!("Login verification failed: {e}");
                     std::process::exit(1);
@@ -273,6 +273,10 @@ fn main() -> io::Result<()> {
             }
         }
         _ => None,
+    };
+    let (auth_token, account) = match auth_result {
+        Some((token, account)) => (Some(token), Some(account)),
+        None => (None, None),
     };
 
     crossterm::terminal::enable_raw_mode()?;
@@ -288,6 +292,7 @@ fn main() -> io::Result<()> {
     let (main_tx, main_rx) = mpsc::channel();
 
     let mut app = App::new();
+    app.account = account;
 
     let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx, &auth_token);
 

@@ -1,5 +1,5 @@
 use crate::app::{App, RaceMode};
-use crate::theme::Theme;
+use crate::theme::{Theme, ThemeField};
 
 use super::common::{base_style, default_block, default_paragraph};
 
@@ -32,7 +32,19 @@ pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
         RaceMode::Words => format!("{} words", len),
     });
 
+    let account_line = match &app.account {
+        Some(acc) => Line::from(Span::styled(
+            format!("{} (elo: {})", acc.username, acc.elo),
+            base_style(theme).fg(theme.get(ThemeField::TypedCorrect)).add_modifier(Modifier::BOLD),
+        )),
+        None => Line::from(Span::styled(
+            "Playing as a guest",
+            base_style(theme).fg(theme.get(ThemeField::TypedCorrect)),
+        )),
+    };
+
     let text = vec![
+        account_line,
         Line::from(""),
         mode_line,
         length_line,

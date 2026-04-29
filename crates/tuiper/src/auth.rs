@@ -1,5 +1,5 @@
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use protocols::{ApiError, AuthRequest, AuthResponse};
+use protocols::{AccountPublic, ApiError, AuthRequest, AuthResponse};
 
 pub fn auth_url_for_ws_url(ws_url: &str) -> Result<String, String> {
     let ws_url = ws_url.trim();
@@ -26,7 +26,11 @@ pub fn ws_url_with_token(ws_base: &str, token: &str) -> String {
     format!("{ws_base}{sep}token={encoded}")
 }
 
-pub fn login(auth_url: &str, username: &str, password: &str) -> Result<String, String> {
+pub fn login(
+    auth_url: &str,
+    username: &str,
+    password: &str,
+) -> Result<(String, AccountPublic), String> {
     let client = reqwest::blocking::Client::new();
     let response = client
         .post(auth_url)
@@ -42,7 +46,7 @@ pub fn login(auth_url: &str, username: &str, password: &str) -> Result<String, S
         let parsed = response
             .json::<AuthResponse>()
             .map_err(|e| format!("invalid auth response: {e}"))?;
-        return Ok(parsed.token);
+        return Ok((parsed.token, parsed.account));
     }
 
     match response.json::<ApiError>() {

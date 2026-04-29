@@ -4,7 +4,7 @@ use crate::words::{generate_next_chunk, generate_words_text};
 
 use common::now_unix_ms;
 use protocols::ServerMessage::*;
-use protocols::{ClientMessage, RaceResults, ServerMessage};
+use protocols::{AccountPublic, ClientMessage, RaceResults, ServerMessage};
 
 use std::sync::mpsc;
 use std::time::Instant;
@@ -61,6 +61,8 @@ pub struct App {
     pub mode: RaceMode,
     pub words_preset_idx: u8,
     pub time_preset_idx: u8,
+
+    pub account: Option<AccountPublic>,
 }
 
 impl App {
@@ -96,6 +98,8 @@ impl App {
             mode: RaceMode::Time,
             words_preset_idx: 1,
             time_preset_idx: 1,
+
+            account: None,
         }
     }
 
