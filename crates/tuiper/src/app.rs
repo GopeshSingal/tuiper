@@ -1,3 +1,4 @@
+use crate::auth;
 use crate::theme::{self, Theme, ThemeEditColumn};
 use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk, generate_words_text};
@@ -312,6 +313,19 @@ impl App {
 
     pub fn disconnect_websocket(&mut self) {
         self.ws_tx = None;
+    }
+
+    pub fn refresh_account_elo(&mut self, ws_url: &str) -> Result<(), String> {
+        let Some(account) = self.account.as_ref() else {
+            return Ok(());
+        };
+
+        let elo_url = auth::account_elo_url_for_ws_url(ws_url, &account.username)?;
+        let (_, elo) = auth::fetch_account_elo(&elo_url)?;
+        if let Some(account_mut) = self.account.as_mut() {
+            account_mut.elo = elo;
+        }
+        Ok(())
     }
 
     pub fn typing(&self) -> Option<&TypingState> {

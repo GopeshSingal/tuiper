@@ -52,7 +52,14 @@ fn run_app(
     main_tx: &mpsc::Sender<ServerMessage>,
     main_rx: &mpsc::Receiver<ServerMessage>,
     auth_token: &Option<String>,
+    ws_url: &str,
 ) -> io::Result<()> {
+    let refresh_lobby_elo = |app: &mut App| {
+        if let Err(err) = app.refresh_account_elo(ws_url) {
+            eprintln!("Failed to refresh account elo: {err}");
+        }
+    };
+
     loop {
         while let Ok(msg) = main_rx.try_recv() {
             app.handle_server_message(msg);
@@ -83,7 +90,7 @@ fn run_app(
                                 let (app_tx, app_rx) = mpsc::channel();
                                 app.ws_tx = Some(app_tx.clone());
                                 network::run_ws_thread(
-                                    ws_url(),
+                                    ws_url.to_string(),
                                     auth_token.clone(),
                                     main_tx.clone(),
                                     app_rx,
@@ -121,6 +128,7 @@ fn run_app(
                             }
                             app.disconnect_websocket();
                             app.screen = Screen::Lobby;
+                            refresh_lobby_elo(app);
                         }
                         _ => {}
                     },
@@ -163,6 +171,7 @@ fn run_app(
                             app.opponent_wpm_history.clear();
                             app.disconnect_websocket();
                             app.screen = Screen::Lobby;
+                            refresh_lobby_elo(app);
                         }
                         KeyCode::Esc => {
                             app.quit = true;
@@ -177,7 +186,7 @@ fn run_app(
                                     let (app_tx, app_rx) = mpsc::channel();
                                     app.ws_tx = Some(app_tx.clone());
                                     network::run_ws_thread(
-                                        ws_url(),
+                                        ws_url.to_string(),
                                         auth_token.clone(),
                                         main_tx.clone(),
                                         app_rx,
@@ -197,6 +206,7 @@ fn run_app(
                             KeyCode::Char('q') => {
                                 let _ = theme::save(&app.theme);
                                 app.screen = Screen::Lobby;
+                                refresh_lobby_elo(app);
                             }
                             KeyCode::Up => {
                                 if app.theme_edit_row > 0 {
@@ -257,9 +267,10 @@ fn main() -> io::Result<()> {
     dotenv().ok();
     let cli = Cli::parse();
     validate_cli(&cli);
+    let current_ws_url = ws_url();
     let auth_result = match (&cli.user, &cli.password) {
         (Some(user), Some(password)) => {
-            let auth_url = match auth::auth_url_for_ws_url(&ws_url()) {
+            let auth_url = match auth::auth_url_for_ws_url(&current_ws_url) {
                 Ok(url) => url,
                 Err(e) => {
                     eprintln!("Login verification failed: {e}");
@@ -295,8 +306,18 @@ fn main() -> io::Result<()> {
 
     let mut app = App::new();
     app.account = account;
+    if let Err(err) = app.refresh_account_elo(&current_ws_url) {
+        eprintln!("Failed to refresh account elo: {err}");
+    }
 
-    let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx, &auth_token);
+    let _ = run_app(
+        &mut terminal,
+        &mut app,
+        &main_tx,
+        &main_rx,
+        &auth_token,
+        &current_ws_url,
+    );
 
     crossterm::execute!(
         terminal.backend_mut(),
