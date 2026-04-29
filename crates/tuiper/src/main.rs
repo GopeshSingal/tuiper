@@ -1,4 +1,5 @@
 mod app;
+mod auth;
 mod network;
 mod theme;
 mod typing;
@@ -8,6 +9,7 @@ mod words;
 use app::{App, Screen};
 use theme::{ThemeEditColumn, ThemeField};
 
+use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use ratatui::backend::CrosstermBackend;
 use ratatui::Terminal;
@@ -24,11 +26,31 @@ fn ws_url() -> String {
     std::env::var("WS_URL").unwrap_or_else(|_| DEFAULT_WS_URL.to_string())
 }
 
+#[derive(Parser, Debug)]
+#[command(name = "tuiper", about = "Terminal typing practice")]
+struct Cli {
+    #[arg(long)]
+    user: Option<String>,
+    #[arg(long)]
+    password: Option<String>,
+}
+
+fn validate_cli(cli: &Cli) {
+    match (&cli.user, &cli.password) {
+        (Some(_), Some(_)) | (None, None) => {}
+        _ => {
+            eprintln!("error: --user and --password must be given together");
+            std::process::exit(1);
+        }
+    }
+}
+
 fn run_app(
     terminal: &mut Terminal<CrosstermBackend<io::Stdout>>,
     app: &mut App,
     main_tx: &mpsc::Sender<ServerMessage>,
     main_rx: &mpsc::Receiver<ServerMessage>,
+    auth_token: &Option<String>,
 ) -> io::Result<()> {
     loop {
         while let Ok(msg) = main_rx.try_recv() {
@@ -59,7 +81,12 @@ fn run_app(
                             } else {
                                 let (app_tx, app_rx) = mpsc::channel();
                                 app.ws_tx = Some(app_tx.clone());
-                                network::run_ws_thread(ws_url(), main_tx.clone(), app_rx);
+                                network::run_ws_thread(
+                                    ws_url(),
+                                    auth_token.clone(),
+                                    main_tx.clone(),
+                                    app_rx,
+                                );
                                 let _ = app_tx.send(ClientMessage::JoinQueue { value });
                             }
                         }
@@ -148,7 +175,12 @@ fn run_app(
                                 } else {
                                     let (app_tx, app_rx) = mpsc::channel();
                                     app.ws_tx = Some(app_tx.clone());
-                                    network::run_ws_thread(ws_url(), main_tx.clone(), app_rx);
+                                    network::run_ws_thread(
+                                        ws_url(),
+                                        auth_token.clone(),
+                                        main_tx.clone(),
+                                        app_rx,
+                                    );
                                     let _ = app_tx.send(ClientMessage::JoinQueue { value });
                                 }
                             } else {
@@ -221,6 +253,28 @@ fn run_app(
 }
 
 fn main() -> io::Result<()> {
+    let cli = Cli::parse();
+    validate_cli(&cli);
+    let auth_token = match (&cli.user, &cli.password) {
+        (Some(user), Some(password)) => {
+            let auth_url = match auth::auth_url_for_ws_url(&ws_url()) {
+                Ok(url) => url,
+                Err(e) => {
+                    eprintln!("Login verification failed: {e}");
+                    std::process::exit(1);
+                }
+            };
+            match auth::login(&auth_url, user.trim(), password) {
+                Ok(token) => Some(token),
+                Err(e) => {
+                    eprintln!("Login verification failed: {e}");
+                    std::process::exit(1);
+                }
+            }
+        }
+        _ => None,
+    };
+
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
     crossterm::execute!(
@@ -235,7 +289,7 @@ fn main() -> io::Result<()> {
 
     let mut app = App::new();
 
-    let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx);
+    let _ = run_app(&mut terminal, &mut app, &main_tx, &main_rx, &auth_token);
 
     crossterm::execute!(
         terminal.backend_mut(),

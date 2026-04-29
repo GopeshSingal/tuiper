@@ -3,25 +3,32 @@ use std::sync::mpsc;
 use tokio::sync::mpsc as tmpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
+use crate::auth;
 use protocols::{ClientMessage, ServerMessage};
 
 pub fn run_ws_thread(
     url: String,
+    token: Option<String>,
     main_tx: mpsc::Sender<ServerMessage>,
     app_rx: mpsc::Receiver<ClientMessage>,
 ) {
     std::thread::spawn(move || {
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(ws_loop(url, main_tx, app_rx));
+        rt.block_on(ws_loop(url, token, main_tx, app_rx));
     });
 }
 
 async fn ws_loop(
     url: String,
+    token: Option<String>,
     main_tx: mpsc::Sender<ServerMessage>,
     app_rx: mpsc::Receiver<ClientMessage>,
 ) {
-    let (ws_stream, _) = match connect_async(&url).await {
+    let connect_url = match token {
+        Some(token) => auth::ws_url_with_token(&url, &token),
+        None => url,
+    };
+    let (ws_stream, _) = match connect_async(&connect_url).await {
         Ok(x) => x,
         Err(e) => {
             let _ = main_tx.send(ServerMessage::Error {
