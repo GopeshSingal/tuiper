@@ -41,3 +41,4 @@ strum = {
 }
 dirs = "6.0.0"
 dotenvy = "0.15.7"
+supports-color = "3.0.2"

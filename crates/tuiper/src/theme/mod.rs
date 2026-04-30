@@ -1,7 +1,6 @@
 mod constants;
 
 use std::collections::HashMap;
-use std::default;
 use std::fs;
 use std::io;
 use std::path::PathBuf;
@@ -12,6 +11,7 @@ use ratatui::style::Color;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use serde_json::{from_str, to_string_pretty};
 use strum::{Display, EnumIter, IntoEnumIterator};
+use supports_color::Stream;
 
 use constants::{PALETTE_NAMES, SHADE_NAMES, TAILWIND_GRID};
 
@@ -86,6 +86,7 @@ pub struct Theme {
     #[serde(flatten)]
     #[serde(with = "color_map_serde")]
     pub fields: HashMap<ThemeField, Color>,
+    pub is_truecolor: bool,
 }
 
 impl Default for Theme {
@@ -104,16 +105,28 @@ impl Default for Theme {
         fields.insert(ThemeField::OppCursorBg, tailwind::VIOLET.c400);
         fields.insert(ThemeField::OppCursorFg, tailwind::GRAY.c50);
 
-        Self { fields }
+        Self {
+            fields,
+            is_truecolor: detect_truecolor(),
+        }
     }
 }
 
 impl Theme {
     pub fn get(&self, field: ThemeField) -> Color {
-        self.fields
+        let color = self.fields
             .get(&field)
             .copied()
-            .unwrap_or_else(|| Self::default_color(field))
+            .unwrap_or_else(|| Self::default_color(field));
+
+        if self.is_truecolor {
+            color
+        } else {
+            match color {
+                Color::Rgb(r, g, b) => Color::Indexed(Self::rgb_to_ansi256(r, g, b)),
+                _ => color
+            }
+        }
     }
 
     pub fn set(&mut self, field: ThemeField, c: Color) {
@@ -172,6 +185,24 @@ impl Theme {
         }
         None
     }
+
+    fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
+        if r == g && g == b {
+            return if r < 8 {
+                16
+            } else if r > 248 {
+                231
+            } else {
+                ((r - 8) / 10) + 232
+            };
+        }
+
+        let r = ((r as u16 * 5) / 255).min(5) as u8;
+        let b = ((b as u16 * 5) / 255).min(5) as u8;
+        let g = ((g as u16 * 5) / 255).min(5) as u8;
+        16 + 36 * r + 6 * g + b
+    }
+
 }
 
 pub fn theme_config_path() -> Option<PathBuf> {
@@ -181,11 +212,17 @@ pub fn theme_config_path() -> Option<PathBuf> {
     })
 }
 
+pub fn detect_truecolor() -> bool {
+    supports_color::on(Stream::Stdout)
+        .map(|s| s.has_16m)
+        .unwrap_or(false)
+}
+
 pub fn load() -> Theme {
     theme_config_path()
         .and_then(|path| fs::read_to_string(path).ok())
         .and_then(|data_str| from_str(&data_str).ok())
-        .unwrap_or_else(Theme::default)
+        .unwrap_or_default()
 }
 
 pub fn save(theme: &Theme) -> io::Result<()> {
