@@ -1,5 +1,6 @@
 pub mod auth;
 pub mod game;
+pub mod leaderboard;
 
 pub use auth::{
     AuthRequest,
@@ -15,4 +16,10 @@ pub use game::{
     RaceResults,
     PlayerResult,
     Winner,
+};
+
+pub use leaderboard::{
+    DailyWpmLeaderboardEntry,
+    EloLeaderboardEntry,
+    LeaderboardResponse,
 };
