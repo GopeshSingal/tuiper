@@ -113,11 +113,15 @@ impl Default for Theme {
 }
 
 impl Theme {
-    pub fn get(&self, field: ThemeField) -> Color {
-        let color = self.fields
+    fn color_for_theme_logic(&self, field: ThemeField) -> Color {
+        self.fields
             .get(&field)
             .copied()
-            .unwrap_or_else(|| Self::default_color(field));
+            .unwrap_or_else(|| Self::default_color(field))
+    }
+
+    pub fn get(&self, field: ThemeField) -> Color {
+        let color = self.color_for_theme_logic(field);
 
         if self.is_truecolor {
             color
@@ -177,7 +181,7 @@ impl Theme {
     }
 
     fn get_grid_pos(&self, field: ThemeField) -> Option<(usize, usize)> {
-        let curr = self.get(field);
+        let curr = self.color_for_theme_logic(field);
         for (r_idx, row) in TAILWIND_GRID.iter().enumerate() {
             if let Some(c_idx) = row.iter().position(|&c| c == curr) {
                 return Some((r_idx, c_idx));
