@@ -55,6 +55,8 @@ pub struct App {
 
     // theme config
     pub theme: Theme,
+    /// When false, theme RGB is mapped to xterm-256 for display.
+    pub display_truecolor: bool,
     pub theme_edit_row: usize,
     pub theme_edit_col: ThemeEditColumn,
 
@@ -92,6 +94,7 @@ impl App {
 
             // theme config
             theme: theme::load(),
+            display_truecolor: theme::detect_truecolor(),
             theme_edit_row: 0,
             theme_edit_col: ThemeEditColumn::default(),
 

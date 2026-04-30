@@ -1,5 +1,5 @@
 use crate::app::{App, RaceMode};
-use crate::theme::{Theme, ThemeField};
+use crate::theme::{ThemeField, ThemePaint};
 use crate::typing::{CharState, TypingState};
 
 use super::common::{base_style, default_block, default_paragraph, line_from_typing};
@@ -43,7 +43,7 @@ fn race_layout(area: Rect, app: &App, is_typing: bool) -> RaceLayout {
     }
 }
 
-fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
+fn race_progress_line(paint: &ThemePaint<'_>, width: u16, ratio: f64) -> Line<'static> {
     const DOT_TRACK: &str = "·";
     const DOT_FILL: &str = "•";
     const DOT_FILL_CURRENT: &str = "●";
@@ -57,11 +57,11 @@ fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
     let filled_end = ratio * inner as f64;
     let filled_count = (filled_end.floor() as usize).min(inner);
 
-    let bracket_style = base_style(theme).fg(theme.get(ThemeField::Untyped));
-    let track_style = base_style(theme).fg(theme.get(ThemeField::Untyped));
-    let fill_style = base_style(theme).fg(theme.get(ThemeField::TypedCorrect));
-    let fill_current_style = base_style(theme)
-        .fg(theme.get(ThemeField::TypedCorrect))
+    let bracket_style = base_style(paint).fg(paint.get(ThemeField::Untyped));
+    let track_style = base_style(paint).fg(paint.get(ThemeField::Untyped));
+    let fill_style = base_style(paint).fg(paint.get(ThemeField::TypedCorrect));
+    let fill_current_style = base_style(paint)
+        .fg(paint.get(ThemeField::TypedCorrect))
         .add_modifier(Modifier::BOLD);
 
     let mut spans = Vec::with_capacity(inner + 2);
@@ -81,7 +81,13 @@ fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
     Line::from(spans)
 }
 
-fn render_race_header(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState, area: Rect) {
+fn render_race_header(
+    frame: &mut Frame,
+    paint: &ThemePaint<'_>,
+    app: &App,
+    t: &TypingState,
+    area: Rect,
+) {
     let rows = Layout::default()
         .direction(Direction::Vertical)
         .constraints([Constraint::Length(3), Constraint::Length(1)])
@@ -103,34 +109,34 @@ fn render_race_header(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingSta
         t.consistency(),
     );
 
-    let stats_block = default_block("Stats", theme);
+    let stats_block = default_block("Stats", paint);
     let stats_inner = stats_block.inner(rows[0]);
     frame.render_widget(stats_block, rows[0]);
     frame.render_widget(
-        Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
+        Paragraph::new(stats).style(base_style(paint).fg(paint.resolve(Color::Cyan))),
         stats_inner,
     );
 
-    let bar = race_progress_line(theme, rows[1].width, ratio);
-    frame.render_widget(default_paragraph(bar, theme), rows[1]);
+    let bar = race_progress_line(paint, rows[1].width, ratio);
+    frame.render_widget(default_paragraph(bar, paint), rows[1]);
 }
 
-fn render_race_middle(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
+fn render_race_middle(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App, area: Rect) {
     if app.is_waiting_for_multiplayer_start() {
         let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
         let waiting_str = format!("Starting in {}s...", countdown);
         frame.render_widget(
-            Paragraph::new(waiting_str).style(base_style(theme).fg(Color::Yellow)),
+            Paragraph::new(waiting_str).style(base_style(paint).fg(paint.resolve(Color::Yellow))),
             area,
         );
     } else if app.is_multi() {
         let opponent_stats = format!("Opponent WPM: {:.0}", app.opponent_wpm);
         frame.render_widget(
-            Paragraph::new(opponent_stats).style(base_style(theme).fg(Color::Yellow)),
+            Paragraph::new(opponent_stats).style(base_style(paint).fg(paint.resolve(Color::Yellow))),
             area,
         );
     } else {
-        frame.render_widget(default_paragraph("", theme), area);
+        frame.render_widget(default_paragraph("", paint), area);
     }
 }
 
@@ -162,7 +168,7 @@ fn current_word_range(text_chars: &[char], cursor: usize) -> Option<std::ops::Ra
     (start < end).then_some(start..end)
 }
 
-fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState, area: Rect) {
+fn render_race_text(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App, t: &TypingState, area: Rect) {
     let states = t.char_states();
     let pending_error = t.has_unfixed_error();
     let text_chars: Vec<char> = t.text().chars().collect();
@@ -176,7 +182,7 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
     };
 
     let line = line_from_typing(
-        theme,
+        paint,
         text_chars.iter().cloned().enumerate(),
         |i| {
             (
@@ -188,18 +194,18 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
         current_word,
     );
 
-    let block = default_block("Type here", theme);
+    let block = default_block("Type here", paint);
     let inner = block.inner(area);
     frame.render_widget(block, area);
-    frame.render_widget(default_paragraph(line, theme), inner);
+    frame.render_widget(default_paragraph(line, paint), inner);
 }
 
-fn render_race_loading(frame: &mut Frame, theme: &Theme, area: Rect) {
-    let msg = Paragraph::new("Loading...").block(default_block("", theme));
+fn render_race_loading(frame: &mut Frame, paint: &ThemePaint<'_>, area: Rect) {
+    let msg = Paragraph::new("Loading...").block(default_block("", paint));
     frame.render_widget(msg, area);
 }
 
-fn render_race_footer(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
+fn render_race_footer(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App, area: Rect) {
     let hint = if app.is_waiting_for_multiplayer_start() {
         "Waiting for race to start"
     } else if app.is_multi() {
@@ -209,22 +215,22 @@ fn render_race_footer(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
     };
 
     frame.render_widget(
-        Paragraph::new(hint).style(base_style(theme).fg(Color::DarkGray)),
+        Paragraph::new(hint).style(base_style(paint).fg(paint.resolve(Color::DarkGray))),
         area,
     );
 }
 
-pub(super) fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
+pub(super) fn draw_race(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App) {
     let typing = app.typing();
     let layout = race_layout(frame.area(), app, typing.is_some());
 
     if let Some(t) = typing {
-        render_race_header(frame, theme, app, t, layout.header);
-        render_race_middle(frame, theme, app, layout.middle);
-        render_race_text(frame, theme, app, t, layout.body);
+        render_race_header(frame, paint, app, t, layout.header);
+        render_race_middle(frame, paint, app, layout.middle);
+        render_race_text(frame, paint, app, t, layout.body);
     } else {
-        render_race_loading(frame, theme, layout.body);
+        render_race_loading(frame, paint, layout.body);
     }
 
-    render_race_footer(frame, theme, app, layout.footer);
+    render_race_footer(frame, paint, app, layout.footer);
 }

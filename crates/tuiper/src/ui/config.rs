@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::theme::{Theme, ThemeEditColumn, ThemeField};
+use crate::theme::{ThemeEditColumn, ThemeField, ThemePaint};
 use crate::typing::CharState;
 
 use super::common::{base_style, line_from_typing};
@@ -11,12 +11,12 @@ use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
 use strum::IntoEnumIterator;
 
-pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
+pub(super) fn draw_config(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App) {
     let area = frame.area();
     let block = Block::default()
         .borders(Borders::ALL)
         .title("Config")
-        .style(base_style(theme));
+        .style(base_style(paint));
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -25,21 +25,22 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
         .constraints([
             Constraint::Min(5),
             Constraint::Length(9),
-            Constraint::Length(2),
+            Constraint::Length(4),
         ])
         .split(inner);
 
     let fields: Vec<ThemeField> = ThemeField::iter().collect();
-    let highlight_style = base_style(theme).add_modifier(Modifier::REVERSED);
-    let normal_style = base_style(theme);
+    let highlight_style = base_style(paint).add_modifier(Modifier::REVERSED);
+    let normal_style = base_style(paint);
 
+    let theme = paint.theme;
     let rows: Vec<Row> = fields
         .iter()
         .enumerate()
         .map(|(i, &field)| {
             let row_sel = app.theme_edit_row == i;
             let field_st = if row_sel {
-                base_style(theme).add_modifier(Modifier::BOLD)
+                base_style(paint).add_modifier(Modifier::BOLD)
             } else {
                 normal_style
             };
@@ -74,16 +75,16 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
                 Cell::from("Palette"),
                 Cell::from("Shade"),
             ])
-            .style(base_style(theme).add_modifier(Modifier::BOLD))
+            .style(base_style(paint).add_modifier(Modifier::BOLD))
             .bottom_margin(1),
         )
         .column_spacing(1)
-        .style(base_style(theme));
+        .style(base_style(paint));
 
     frame.render_widget(table, chunks[0]);
 
     let preview_line1 = line_from_typing(
-        theme,
+        paint,
         "The quick brown fox".chars().enumerate(),
         |i| {
             let state = match i {
@@ -97,7 +98,7 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
         None,
     );
     let preview_line2 = line_from_typing(
-        theme,
+        paint,
         "jumped over the lazy dog".chars().enumerate(),
         |i| match i {
             0..=1 => (CharState::Correct, false),
@@ -112,27 +113,37 @@ pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
     let preview_block = Block::default()
         .borders(Borders::ALL)
         .title("Preview")
-        .style(base_style(theme));
+        .style(base_style(paint));
     let preview_inner = preview_block.inner(chunks[1]);
     frame.render_widget(preview_block, chunks[1]);
     frame.render_widget(
         Paragraph::new(vec![preview_line1, preview_line2])
             .wrap(Wrap { trim: false })
-            .style(base_style(theme)),
+            .style(base_style(paint)),
         preview_inner,
     );
 
-    let hints = vec![
+    let mut hint_lines = vec![
         Line::from(""),
         Line::from(Span::styled(
             "Use arrow keys to navigate  Tab/ShiftTab: cycle palette or shade   R: reset   Q: save & back",
-            base_style(theme).fg(Color::DarkGray),
+            base_style(paint).fg(paint.resolve(Color::DarkGray)),
         )),
     ];
+    if !app.display_truecolor {
+        hint_lines.insert(
+            1,
+            Line::from(Span::styled(
+                "256-color mode — displayed colors approximate your saved theme.",
+                base_style(paint).fg(paint.resolve(Color::DarkGray)),
+            )),
+        );
+    }
+
     frame.render_widget(
-        Paragraph::new(hints)
+        Paragraph::new(hint_lines)
             .wrap(Wrap { trim: false })
-            .style(base_style(theme)),
+            .style(base_style(paint)),
         chunks[2],
     );
 }

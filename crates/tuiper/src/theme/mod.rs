@@ -1,7 +1,9 @@
 mod constants;
+mod resolve;
+
+pub use resolve::{detect_truecolor, ThemePaint};
 
 use std::collections::HashMap;
-use std::default;
 use std::fs;
 use std::io;
 use std::path::PathBuf;

@@ -1,5 +1,5 @@
 use crate::app::{App, RaceMode};
-use crate::theme::{Theme, ThemeField};
+use crate::theme::{ThemeField, ThemePaint};
 
 use super::common::{base_style, default_block, default_paragraph};
 
@@ -8,9 +8,9 @@ use ratatui::style::{Color, Modifier};
 use ratatui::text::{Line, Span};
 use ratatui::Frame;
 
-pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
+pub(super) fn draw_lobby(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App) {
     let area = frame.area();
-    let block = default_block("Tuiper", theme);
+    let block = default_block("Tuiper", paint);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -25,7 +25,7 @@ pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
             RaceMode::Time => "Mode: Time",
             RaceMode::Words => "Mode: Words",
         },
-        base_style(theme).add_modifier(Modifier::BOLD),
+        base_style(paint).add_modifier(Modifier::BOLD),
     ));
     let length_line = Line::from(match app.mode {
         RaceMode::Time => format!("{}s", len),
@@ -35,11 +35,13 @@ pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
     let account_line = match &app.account {
         Some(acc) => Line::from(Span::styled(
             format!("{} (elo: {})", acc.username, acc.elo),
-            base_style(theme).fg(theme.get(ThemeField::TypedCorrect)).add_modifier(Modifier::BOLD),
+            base_style(paint)
+                .fg(paint.get(ThemeField::TypedCorrect))
+                .add_modifier(Modifier::BOLD),
         )),
         None => Line::from(Span::styled(
             "Playing as a guest",
-            base_style(theme).fg(theme.get(ThemeField::TypedCorrect)),
+            base_style(paint).fg(paint.get(ThemeField::TypedCorrect)),
         )),
     };
 
@@ -54,14 +56,14 @@ pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
         Line::from("C: customize"),
         Line::from("Esc: Quit"),
     ];
-    frame.render_widget(default_paragraph(text, theme), chunks[0]);
+    frame.render_widget(default_paragraph(text, paint), chunks[0]);
 
     let hint = vec![
         Line::from(""),
         Line::from(Span::styled(
             "Tab: mode    Left/Right: length",
-            base_style(theme).fg(Color::DarkGray),
+            base_style(paint).fg(paint.resolve(Color::DarkGray)),
         )),
     ];
-    frame.render_widget(default_paragraph(hint, theme), chunks[1]);
+    frame.render_widget(default_paragraph(hint, paint), chunks[1]);
 }

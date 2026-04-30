@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::theme::{Theme, ThemeField};
+use crate::theme::{ThemeField, ThemePaint};
 
 use super::common::{base_style, default_block, default_paragraph};
 
@@ -11,7 +11,7 @@ use ratatui::Frame;
 
 fn draw_wpm_chart(
     frame: &mut Frame,
-    theme: &Theme,
+    paint: &ThemePaint<'_>,
     area: ratatui::layout::Rect,
     local: Option<&crate::typing::TypingStats>,
     opponent_history: Option<&[(f64, f64)]>,
@@ -24,8 +24,8 @@ fn draw_wpm_chart(
     if local_hist.is_none() && opp_hist.is_none() {
         frame.render_widget(
             Paragraph::new("Not enough typing data to plot WPM graph.")
-                .style(base_style(theme))
-                .block(default_block("WPM Over Time", theme)),
+                .style(base_style(paint))
+                .block(default_block("WPM Over Time", paint)),
             area,
         );
         return;
@@ -50,22 +50,22 @@ fn draw_wpm_chart(
         vec![
             Span::styled(
                 format!("{:.1}", x_axis_min),
-                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+                base_style(paint).fg(paint.get(ThemeField::Untyped)),
             ),
             Span::styled(
                 format!("{:.0}", x_axis_max),
-                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+                base_style(paint).fg(paint.get(ThemeField::Untyped)),
             ),
         ]
     } else {
         vec![
             Span::styled(
                 format!("{:.1}", x_axis_min),
-                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+                base_style(paint).fg(paint.get(ThemeField::Untyped)),
             ),
             Span::styled(
                 format!("{:.1}", x_data_max),
-                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+                base_style(paint).fg(paint.get(ThemeField::Untyped)),
             ),
         ]
     };
@@ -115,7 +115,7 @@ fn draw_wpm_chart(
         .map(|v| {
             Span::styled(
                 format!("{:.0}", v),
-                base_style(theme).fg(theme.get(ThemeField::Untyped)),
+                base_style(paint).fg(paint.get(ThemeField::Untyped)),
             )
         })
         .collect::<Vec<_>>();
@@ -143,7 +143,7 @@ fn draw_wpm_chart(
             Dataset::default()
                 .marker(ratatui::symbols::Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(base_style(theme).fg(theme.get(ThemeField::TypedCorrect)))
+                .style(base_style(paint).fg(paint.get(ThemeField::TypedCorrect)))
                 .data(pts.as_slice()),
         );
     }
@@ -152,23 +152,23 @@ fn draw_wpm_chart(
             Dataset::default()
                 .marker(ratatui::symbols::Marker::Braille)
                 .graph_type(GraphType::Line)
-                .style(base_style(theme).fg(theme.get(ThemeField::TypedIncorrect)))
+                .style(base_style(paint).fg(paint.get(ThemeField::TypedIncorrect)))
                 .data(pts.as_slice()),
         );
     }
 
     let chart = Chart::new(datasets)
-        .block(default_block(title, theme))
-        .style(base_style(theme))
+        .block(default_block(title, paint))
+        .style(base_style(paint))
         .x_axis(
             Axis::default()
-                .style(base_style(theme).fg(theme.get(ThemeField::Untyped)))
+                .style(base_style(paint).fg(paint.get(ThemeField::Untyped)))
                 .bounds([x_axis_min, x_axis_max])
                 .labels(x_labels),
         )
         .y_axis(
             Axis::default()
-                .style(base_style(theme).fg(theme.get(ThemeField::Untyped)))
+                .style(base_style(paint).fg(paint.get(ThemeField::Untyped)))
                 .bounds([y_axis_min, y_axis_max])
                 .labels(y_labels),
         );
@@ -176,9 +176,9 @@ fn draw_wpm_chart(
     frame.render_widget(chart, area);
 }
 
-pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
+pub(super) fn draw_results(frame: &mut Frame, paint: &ThemePaint<'_>, app: &App) {
     let area = frame.area();
-    let block = default_block("Results", theme);
+    let block = default_block("Results", paint);
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
@@ -193,9 +193,15 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             .split(inner);
 
         let winner_span = match &res.winner {
-            Some(protocols::Winner::Me) => Span::styled("You won :)", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
-            Some(protocols::Winner::Opponent) => Span::styled("You lost :(", base_style(theme).fg(theme.get(ThemeField::TypedIncorrect))),
-            None => Span::styled("", base_style(theme).fg(Color::Cyan))
+            Some(protocols::Winner::Me) => Span::styled(
+                "You won :)",
+                base_style(paint).fg(paint.get(ThemeField::TypedCorrect)),
+            ),
+            Some(protocols::Winner::Opponent) => Span::styled(
+                "You lost :(",
+                base_style(paint).fg(paint.get(ThemeField::TypedIncorrect)),
+            ),
+            None => Span::styled("", base_style(paint).fg(paint.resolve(Color::Cyan))),
         };
 
         let text = vec![
@@ -203,30 +209,30 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
             Line::from(winner_span),
             Line::from(""),
             Line::from(vec![
-                Span::styled("You: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("You: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
                 Span::styled(
                     format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy),
-                    base_style(theme),
+                    base_style(paint),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("Opponent: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Opponent: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
                 Span::styled(
                     format!(
                         "{:.0} WPM  {:.1}% acc",
                         res.opponent.wpm, res.opponent.accuracy
                     ),
-                    base_style(theme),
+                    base_style(paint),
                 ),
             ]),
             Line::from(""),
         ];
-        frame.render_widget(default_paragraph(text, theme), chunks[0]);
+        frame.render_widget(default_paragraph(text, paint), chunks[0]);
 
         if app.result().is_some() || !app.opponent_wpm_history.is_empty() {
             draw_wpm_chart(
                 frame,
-                theme,
+                paint,
                 chunks[1],
                 app.result(),
                 Some(app.opponent_wpm_history.as_slice()),
@@ -234,15 +240,15 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
         } else {
             frame.render_widget(
                 Paragraph::new("No local WPM history available.")
-                    .style(base_style(theme))
-                    .block(default_block("WPM Over Time", theme)),
+                    .style(base_style(paint))
+                    .block(default_block("WPM Over Time", paint)),
                 chunks[1],
             );
         }
 
         frame.render_widget(
             Paragraph::new("Tab or Enter: race again  Q: lobby")
-                .style(base_style(theme).fg(Color::DarkGray)),
+                .style(base_style(paint).fg(paint.resolve(Color::DarkGray))),
             chunks[2],
         );
     } else if let Some(r) = app.result() {
@@ -258,42 +264,42 @@ pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
         let text = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("WPM: ", base_style(theme).fg(Color::Cyan)),
-                Span::styled(format!("{:.0}", r.wpm), base_style(theme)),
+                Span::styled("WPM: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
+                Span::styled(format!("{:.0}", r.wpm), base_style(paint)),
             ]),
             Line::from(vec![
-                Span::styled("Raw WPM: ", base_style(theme).fg(Color::Cyan)),
-                Span::styled(format!("{:.0}", r.raw_wpm), base_style(theme)),
+                Span::styled("Raw WPM: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
+                Span::styled(format!("{:.0}", r.raw_wpm), base_style(paint)),
             ]),
             Line::from(vec![
-                Span::styled("Accuracy: ", base_style(theme).fg(Color::Cyan)),
-                Span::styled(format!("{:.1}%", r.accuracy), base_style(theme)),
+                Span::styled("Accuracy: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
+                Span::styled(format!("{:.1}%", r.accuracy), base_style(paint)),
             ]),
             Line::from(vec![
-                Span::styled("Consistency: ", base_style(theme).fg(Color::Cyan)),
-                Span::styled(format!("{:.0}%", r.consistency), base_style(theme)),
+                Span::styled("Consistency: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
+                Span::styled(format!("{:.0}%", r.consistency), base_style(paint)),
             ]),
             Line::from(vec![
-                Span::styled("Time: ", base_style(theme).fg(Color::Cyan)),
-                Span::styled(format!("{:.1}", r.duration_secs), base_style(theme)),
+                Span::styled("Time: ", base_style(paint).fg(paint.resolve(Color::Cyan))),
+                Span::styled(format!("{:.1}", r.duration_secs), base_style(paint)),
             ]),
         ];
         frame.render_widget(
             Paragraph::new(text)
                 .wrap(Wrap { trim: false })
-                .style(base_style(theme)),
+                .style(base_style(paint)),
             chunks[0],
         );
 
-        draw_wpm_chart(frame, theme, chunks[1], Some(r), None);
+        draw_wpm_chart(frame, paint, chunks[1], Some(r), None);
         frame.render_widget(
             Paragraph::new("Tab / Enter: try again    Q: lobby")
-                .style(base_style(theme).fg(Color::DarkGray)),
+                .style(base_style(paint).fg(paint.resolve(Color::DarkGray))),
             chunks[2],
         );
     } else {
         frame.render_widget(
-            Paragraph::new("No results to display!").style(base_style(theme)),
+            Paragraph::new("No results to display!").style(base_style(paint)),
             inner,
         );
     }
