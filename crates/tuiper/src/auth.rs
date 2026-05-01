@@ -1,9 +1,10 @@
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use protocols::{AccountPublic, ApiError, AuthRequest, AuthResponse};
+use protocols::{AccountPublic, ApiError, AuthRequest, AuthResponse, LeaderboardResponse};
 use serde::Deserialize;
 
-pub fn auth_url_for_ws_url(ws_url: &str) -> Result<String, String> {
+fn http_base_from_ws_url(ws_url: &str) -> Result<String, String> {
     let ws_url = ws_url.trim();
+
     let (scheme, rest) = if let Some(r) = ws_url.strip_prefix("wss://") {
         ("https", r)
     } else if let Some(r) = ws_url.strip_prefix("ws://") {
@@ -18,32 +19,28 @@ pub fn auth_url_for_ws_url(ws_url: &str) -> Result<String, String> {
         return Err("WS_URL is missing host".to_string());
     }
 
-    Ok(format!("{scheme}://{authority}/auth"))
+    Ok(format!("{scheme}://{authority}"))
+}
+
+pub fn auth_url_for_ws_url(ws_url: &str) -> Result<String, String> {
+    let base = http_base_from_ws_url(ws_url)?;
+    Ok(format!("{base}/auth"))
 }
 
 pub fn account_elo_url_for_ws_url(ws_url: &str, username: &str) -> Result<String, String> {
-    let ws_url = ws_url.trim();
     let username = username.trim();
     if username.is_empty() {
         return Err("username was expected".to_string());
     }
 
-    let (scheme, rest) = if let Some(r) = ws_url.strip_prefix("wss://") {
-        ("https", r)
-    } else if let Some(r) = ws_url.strip_prefix("ws://") {
-        ("http", r)
-    } else {
-        return Err("WS_URL must start with ws:// or wss://".to_string());
-    };
-
-    let authority_end = rest.find('/').unwrap_or(rest.len());
-    let authority = rest[..authority_end].trim();
-    if authority.is_empty() {
-        return Err("WS_URL is missing host".to_string());
-    }
-
+    let base = http_base_from_ws_url(ws_url)?;
     let encoded_user = utf8_percent_encode(username, NON_ALPHANUMERIC).to_string();
-    Ok(format!("{scheme}://{authority}/accounts/{encoded_user}/elo"))
+    Ok(format!("{base}/accounts/{encoded_user}/elo"))
+}
+
+pub fn leaderboard_url_for_ws_url(ws_url: &str) -> Result<String, String> {
+    let base = http_base_from_ws_url(ws_url)?;
+    Ok(format!("{base}/leaderboard"))
 }
 
 pub fn ws_url_with_token(ws_base: &str, token: &str) -> String {
@@ -105,5 +102,25 @@ pub fn fetch_account_elo(elo_url: &str) -> Result<(String, i64), String> {
     match response.json::<ApiError>() {
         Ok(api_error) => Err(api_error.error),
         Err(_) => Err(format!("account elo fetch failed ({status})")),
+    }
+}
+
+pub fn fetch_leaderboard(leaderboard_url: &str) -> Result<LeaderboardResponse, String> {
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(leaderboard_url)
+        .send()
+        .map_err(|e| format!("leaderboard request failed: {e}"))?;
+
+    let status = response.status();
+    if status.is_success() {
+        return response
+            .json::<LeaderboardResponse>()
+            .map_err(|e| format!("invalid leaderboard response: {e}"));
+    }
+
+    match response.json::<ApiError>() {
+        Ok(api_error) => Err(api_error.error),
+        Err(_) => Err(format!("leaderboard fetch failed ({status})")),
     }
 }

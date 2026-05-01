@@ -1,5 +1,6 @@
 mod common;
 mod config;
+mod leaderboard;
 mod lobby;
 mod queue;
 mod race;
@@ -23,5 +24,6 @@ pub fn draw(frame: &mut Frame, app: &App) {
         Screen::Race => race::draw_race(frame, theme, app),
         Screen::Results => results::draw_results(frame, theme, app),
         Screen::Config => config::draw_config(frame, theme, app),
+        Screen::Leaderboard => leaderboard::draw_leaderboard(frame, theme, app),
     }
 }

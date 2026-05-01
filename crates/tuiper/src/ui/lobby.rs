@@ -51,6 +51,7 @@ pub(super) fn draw_lobby(frame: &mut Frame, theme: &Theme, app: &App) {
         Line::from(""),
         Line::from("S: start a race"),
         Line::from("F: find an opponent (Time: 30s)"),
+        Line::from("L: leaderboard"),
         Line::from("C: customize"),
         Line::from("Esc: Quit"),
     ];

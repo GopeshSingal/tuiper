@@ -5,7 +5,7 @@ use crate::words::{generate_next_chunk, generate_words_text};
 
 use common::now_unix_ms;
 use protocols::ServerMessage::*;
-use protocols::{AccountPublic, ClientMessage, RaceResults, ServerMessage};
+use protocols::{AccountPublic, ClientMessage, LeaderboardResponse, RaceResults, ServerMessage};
 
 use std::sync::mpsc;
 use std::time::Instant;
@@ -17,6 +17,7 @@ pub enum Screen {
     Race,
     Results,
     Config,
+    Leaderboard,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -64,6 +65,9 @@ pub struct App {
     pub time_preset_idx: u8,
 
     pub account: Option<AccountPublic>,
+
+    pub leaderboard: Option<LeaderboardResponse>,
+    pub leaderboard_error: Option<String>,
 }
 
 impl App {
@@ -101,6 +105,9 @@ impl App {
             time_preset_idx: 1,
 
             account: None,
+
+            leaderboard: None,
+            leaderboard_error: None,
         }
     }
 
@@ -326,6 +333,22 @@ impl App {
             account_mut.elo = elo;
         }
         Ok(())
+    }
+
+    pub fn refresh_leaderboard(&mut self, ws_url: &str) -> Result<(), String> {
+        let url = auth::leaderboard_url_for_ws_url(ws_url)?;
+        match auth::fetch_leaderboard(&url) {
+            Ok(data) => {
+                self.leaderboard = Some(data);
+                self.leaderboard_error = None;
+                Ok(())
+            }
+            Err(e) => {
+                self.leaderboard_error = Some(e.clone());
+                self.leaderboard = None;
+                Err(e)
+            }
+        }
     }
 
     pub fn typing(&self) -> Option<&TypingState> {
