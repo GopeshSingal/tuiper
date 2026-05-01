@@ -98,6 +98,12 @@ fn run_app(
                                 let _ = app_tx.send(ClientMessage::JoinQueue { value });
                             }
                         }
+                        KeyCode::Char('l') | KeyCode::Char('L') => {
+                            if let Err(err) = app.refresh_leaderboard(ws_url) {
+                                eprintln!("Leaderboard refresh failed: {err}");
+                            }
+                            app.screen = Screen::Leaderboard;
+                        }
                         KeyCode::Char('c') | KeyCode::Char('C') => {
                             app.theme_edit_row = 0;
                             app.theme_edit_col = ThemeEditColumn::default();
@@ -165,7 +171,7 @@ fn run_app(
                         }
                     }
                     Screen::Results => match key.code {
-                        KeyCode::Char('q') => {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => {
                             app.result = None;
                             app.race_results = None;
                             app.opponent_wpm_history.clear();
@@ -196,6 +202,19 @@ fn run_app(
                             } else {
                                 app.start_race(app.lobby_value());
                             }
+                        }
+                        _ => {}
+                    },
+                    Screen::Leaderboard => match key.code {
+                        KeyCode::Char('q') | KeyCode::Char('Q') => {
+                            app.screen = Screen::Lobby;
+                            if let Err(err) = app.refresh_account_elo(ws_url) {
+                                eprintln!("Failed to refresh account elo: {err}");
+                            }
+                        }
+                        KeyCode::Esc => {
+                            app.quit = true;
+                            break;
                         }
                         _ => {}
                     },
