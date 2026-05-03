@@ -43,6 +43,18 @@ fn race_layout(area: Rect, app: &App, is_typing: bool) -> RaceLayout {
     }
 }
 
+fn multiplayer_opponent_label(app: &App) -> String {
+    let Some(ref o) = app.multiplayer_opponent else {
+        return "Guest".to_string();
+    };
+    match (&o.username, o.elo) {
+        (Some(u), Some(e)) => format!("{u} (elo {e})"),
+        (Some(u), None) => u.clone(),
+        (None, Some(e)) => format!("Guest (elo {e})"),
+        (None, None) => "Guest".to_string(),
+    }
+}
+
 fn race_progress_line(theme: &Theme, width: u16, ratio: f64) -> Line<'static> {
     const DOT_TRACK: &str = "·";
     const DOT_FILL: &str = "•";
@@ -118,13 +130,19 @@ fn render_race_header(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingSta
 fn render_race_middle(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
     if app.is_waiting_for_multiplayer_start() {
         let countdown = app.multiplayer_countdown_secs().unwrap_or(0);
-        let waiting_str = format!("Starting in {}s...", countdown);
+        let opp = multiplayer_opponent_label(app);
+        let waiting_str = format!("vs {} · starting in {}s...", opp, countdown);
         frame.render_widget(
             Paragraph::new(waiting_str).style(base_style(theme).fg(Color::Yellow)),
             area,
         );
     } else if app.is_multi() {
-        let opponent_stats = format!("Opponent WPM: {:.0}", app.opponent_wpm);
+        let opp = multiplayer_opponent_label(app);
+        let opponent_stats = format!(
+            "vs {} · opp WPM: {:.0}",
+            opp,
+            app.opponent_wpm
+        );
         frame.render_widget(
             Paragraph::new(opponent_stats).style(base_style(theme).fg(Color::Yellow)),
             area,

@@ -5,7 +5,9 @@ use crate::words::{generate_next_chunk, generate_words_text};
 
 use common::now_unix_ms;
 use protocols::ServerMessage::*;
-use protocols::{AccountPublic, ClientMessage, LeaderboardResponse, RaceResults, ServerMessage};
+use protocols::{
+    AccountPublic, ClientMessage, LeaderboardResponse, RaceOpponent, RaceResults, ServerMessage,
+};
 
 use std::sync::mpsc;
 use std::time::Instant;
@@ -49,6 +51,7 @@ pub struct App {
     multiplayer_race_t0: Option<Instant>,
     pub opponent_wpm: f64,
     pub opponent_chars: u32,
+    pub multiplayer_opponent: Option<RaceOpponent>,
     pub opponent_wpm_history: Vec<(f64, f64)>,
     pub last_progress_sent: f64,
     pub race_results: Option<RaceResults>,
@@ -89,6 +92,7 @@ impl App {
             multiplayer_race_t0: None,
             opponent_wpm: 0.0,
             opponent_chars: 0,
+            multiplayer_opponent: None,
             opponent_wpm_history: Vec::new(),
             last_progress_sent: 0.0,
             race_results: None,
@@ -150,8 +154,9 @@ impl App {
                 value,
                 seed,
                 start_at_unix_ms,
+                opponent,
             } => {
-                self.start_multiplayer(seed, value, start_at_unix_ms);
+                self.start_multiplayer(seed, value, start_at_unix_ms, opponent);
             }
             OpponentProgress { wpm, chars_typed } => {
                 if self.multiplayer_session_active {
@@ -182,6 +187,7 @@ impl App {
                 }
                 self.multiplayer_session_active = false;
                 self.multiplayer_race_t0 = None;
+                self.multiplayer_opponent = None;
                 self.race_results = Some(results);
                 if self.result.is_none() {
                     self.result = self.typing.as_ref().map(TypingState::final_stats);
@@ -205,6 +211,7 @@ impl App {
         self.multiplayer_race = false;
         self.multiplayer_session_active = false;
         self.multiplayer_race_t0 = None;
+        self.multiplayer_opponent = None;
         self.opponent_wpm_history.clear();
         self.result = None;
         self.race_results = None;
@@ -224,9 +231,16 @@ impl App {
         self.words_so_far = word_count;
     }
 
-    pub fn start_multiplayer(&mut self, seed: u64, value: u32, start_at_unix_ms: u64) {
+    pub fn start_multiplayer(
+        &mut self,
+        seed: u64,
+        value: u32,
+        start_at_unix_ms: u64,
+        opponent: RaceOpponent,
+    ) {
         self.multiplayer_race = true;
         self.multiplayer_session_active = true;
+        self.multiplayer_opponent = Some(opponent);
         self.multiplayer_race_t0 = None;
         self.result = None;
         self.race_results = None;
@@ -320,6 +334,7 @@ impl App {
 
     pub fn disconnect_websocket(&mut self) {
         self.ws_tx = None;
+        self.multiplayer_opponent = None;
     }
 
     pub fn refresh_account_elo(&mut self, ws_url: &str) -> Result<(), String> {
