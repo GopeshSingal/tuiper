@@ -13,6 +13,7 @@ pub use auth::{
 pub use game::{
     ClientMessage,
     ServerMessage,
+    RaceOpponent,
     RaceResults,
     PlayerResult,
     Winner,

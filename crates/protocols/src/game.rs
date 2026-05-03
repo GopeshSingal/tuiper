@@ -20,6 +20,12 @@ pub enum ClientMessage {
     },
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct RaceOpponent {
+    pub username: Option<String>,
+    pub elo: Option<i64>,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum ServerMessage {
@@ -29,6 +35,7 @@ pub enum ServerMessage {
         value: u32,
         seed: u64,
         start_at_unix_ms: u64,
+        opponent: RaceOpponent,
     },
     OpponentProgress {
         wpm: f64,
