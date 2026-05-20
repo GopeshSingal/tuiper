@@ -4,15 +4,14 @@ use crate::typing::CharState;
 
 use super::common::{base_style, line_from_typing};
 
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Cell, Paragraph, Row, Table, Wrap};
 use ratatui::Frame;
 use strum::IntoEnumIterator;
 
-pub(super) fn draw_config(frame: &mut Frame, theme: &Theme, app: &App) {
-    let area = frame.area();
+pub(super) fn draw_config(frame: &mut Frame, area: Rect, theme: &Theme, app: &App) {
     let block = Block::default()
         .borders(Borders::ALL)
         .title("Config")

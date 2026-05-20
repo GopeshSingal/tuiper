@@ -3,7 +3,7 @@ use crate::theme::{Theme, ThemeField};
 
 use super::common::{base_style, default_block, default_paragraph};
 
-use ratatui::layout::{Constraint, Direction, Layout};
+use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::Color;
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Axis, Chart, Dataset, GraphType, Paragraph, Wrap};
@@ -176,8 +176,7 @@ fn draw_wpm_chart(
     frame.render_widget(chart, area);
 }
 
-pub(super) fn draw_results(frame: &mut Frame, theme: &Theme, app: &App) {
-    let area = frame.area();
+pub(super) fn draw_results(frame: &mut Frame, area: Rect, theme: &Theme, app: &App) {
     let block = default_block("Results", theme);
     let inner = block.inner(area);
     frame.render_widget(block, area);

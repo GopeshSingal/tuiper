@@ -22,6 +22,12 @@ pub enum Screen {
     Leaderboard,
 }
 
+impl Screen {
+    pub fn uses_shell(self) -> bool {
+        matches!(self, Screen::Lobby | Screen::Leaderboard | Screen::Config)
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum RaceMode {
     Time,

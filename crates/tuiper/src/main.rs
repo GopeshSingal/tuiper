@@ -27,6 +27,28 @@ fn ws_url() -> String {
     std::env::var("WS_URL").unwrap_or_else(|_| DEFAULT_WS_URL.to_string())
 }
 
+fn handle_shell_nav(app: &mut App, key: KeyCode, ws_url: &str) -> bool {
+    if !app.screen.uses_shell() {
+        return false;
+    }
+    match key {
+        KeyCode::Char('l') | KeyCode::Char('L') => {
+            if let Err(err) = app.refresh_leaderboard(ws_url) {
+                eprintln!("Leaderboard refresh failed: {err}");
+            }
+            app.screen = Screen::Leaderboard;
+            true
+        }
+        KeyCode::Char('c') | KeyCode::Char('C') => {
+            app.theme_edit_row = 0;
+            app.theme_edit_col = ThemeEditColumn::default();
+            app.screen = Screen::Config;
+            true
+        }
+        _ => false,
+    }
+}
+
 #[derive(Parser, Debug)]
 #[command(name = "tuiper", about = "Terminal typing practice")]
 struct Cli {
@@ -73,6 +95,9 @@ fn run_app(
                 if key.kind != KeyEventKind::Press {
                     continue;
                 }
+                if handle_shell_nav(app, key.code, ws_url) {
+                    continue;
+                }
                 match app.screen {
                     Screen::Lobby => match key.code {
                         KeyCode::Char('q') | KeyCode::Esc => {
@@ -97,17 +122,6 @@ fn run_app(
                                 );
                                 let _ = app_tx.send(ClientMessage::JoinQueue { value });
                             }
-                        }
-                        KeyCode::Char('l') | KeyCode::Char('L') => {
-                            if let Err(err) = app.refresh_leaderboard(ws_url) {
-                                eprintln!("Leaderboard refresh failed: {err}");
-                            }
-                            app.screen = Screen::Leaderboard;
-                        }
-                        KeyCode::Char('c') | KeyCode::Char('C') => {
-                            app.theme_edit_row = 0;
-                            app.theme_edit_col = ThemeEditColumn::default();
-                            app.screen = Screen::Config;
                         }
                         KeyCode::Tab => {
                             app.cycle_mode(1);

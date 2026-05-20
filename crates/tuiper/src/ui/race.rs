@@ -232,9 +232,9 @@ fn render_race_footer(frame: &mut Frame, theme: &Theme, app: &App, area: Rect) {
     );
 }
 
-pub(super) fn draw_race(frame: &mut Frame, theme: &Theme, app: &App) {
+pub(super) fn draw_race(frame: &mut Frame, area: Rect, theme: &Theme, app: &App) {
     let typing = app.typing();
-    let layout = race_layout(frame.area(), app, typing.is_some());
+    let layout = race_layout(area, app, typing.is_some());
 
     if let Some(t) = typing {
         render_race_header(frame, theme, app, t, layout.header);
