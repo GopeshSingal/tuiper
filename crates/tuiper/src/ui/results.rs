@@ -194,7 +194,7 @@ pub(super) fn draw_results(frame: &mut Frame, area: Rect, theme: &Theme, app: &A
         let winner_span = match &res.winner {
             Some(protocols::Winner::Me) => Span::styled("You won :)", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
             Some(protocols::Winner::Opponent) => Span::styled("You lost :(", base_style(theme).fg(theme.get(ThemeField::TypedIncorrect))),
-            None => Span::styled("", base_style(theme).fg(Color::Cyan))
+            None => Span::styled("", base_style(theme).fg(theme.get(ThemeField::TypedCorrect)))
         };
 
         let text = vec![
@@ -202,14 +202,14 @@ pub(super) fn draw_results(frame: &mut Frame, area: Rect, theme: &Theme, app: &A
             Line::from(winner_span),
             Line::from(""),
             Line::from(vec![
-                Span::styled("You: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("You: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(
                     format!("{:.0} WPM  {:.1}% acc", res.me.wpm, res.me.accuracy),
                     base_style(theme),
                 ),
             ]),
             Line::from(vec![
-                Span::styled("Opponent: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Opponent: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(
                     format!(
                         "{:.0} WPM  {:.1}% acc",
@@ -257,23 +257,23 @@ pub(super) fn draw_results(frame: &mut Frame, area: Rect, theme: &Theme, app: &A
         let text = vec![
             Line::from(""),
             Line::from(vec![
-                Span::styled("WPM: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("WPM: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(format!("{:.0}", r.wpm), base_style(theme)),
             ]),
             Line::from(vec![
-                Span::styled("Raw WPM: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Raw WPM: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(format!("{:.0}", r.raw_wpm), base_style(theme)),
             ]),
             Line::from(vec![
-                Span::styled("Accuracy: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Accuracy: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(format!("{:.1}%", r.accuracy), base_style(theme)),
             ]),
             Line::from(vec![
-                Span::styled("Consistency: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Consistency: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(format!("{:.0}%", r.consistency), base_style(theme)),
             ]),
             Line::from(vec![
-                Span::styled("Time: ", base_style(theme).fg(Color::Cyan)),
+                Span::styled("Time: ", base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
                 Span::styled(format!("{:.1}", r.duration_secs), base_style(theme)),
             ]),
         ];

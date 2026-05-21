@@ -119,7 +119,7 @@ fn render_race_header(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingSta
     let stats_inner = stats_block.inner(rows[0]);
     frame.render_widget(stats_block, rows[0]);
     frame.render_widget(
-        Paragraph::new(stats).style(base_style(theme).fg(Color::Cyan)),
+        Paragraph::new(stats).style(base_style(theme).fg(theme.get(ThemeField::TypedCorrect))),
         stats_inner,
     );
 
