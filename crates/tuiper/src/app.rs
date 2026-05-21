@@ -6,7 +6,8 @@ use crate::words::{generate_next_chunk, generate_words_text};
 use common::now_unix_ms;
 use protocols::ServerMessage::*;
 use protocols::{
-    AccountPublic, ClientMessage, LeaderboardResponse, RaceOpponent, RaceResults, ServerMessage,
+    AccountPublic, ClientMessage, LeaderboardResponse, RaceHistoryResponse, RaceOpponent,
+    RaceResults, ServerMessage,
 };
 
 use std::sync::mpsc;
@@ -20,11 +21,12 @@ pub enum Screen {
     Results,
     Config,
     Leaderboard,
+    Statistics,
 }
 
 impl Screen {
     pub fn uses_shell(self) -> bool {
-        matches!(self, Screen::Lobby | Screen::Leaderboard | Screen::Config)
+        matches!(self, Screen::Lobby | Screen::Leaderboard | Screen::Config | Screen::Statistics)
     }
 }
 
@@ -77,6 +79,10 @@ pub struct App {
 
     pub leaderboard: Option<LeaderboardResponse>,
     pub leaderboard_error: Option<String>,
+
+    pub race_history: Option<RaceHistoryResponse>,
+    pub race_history_error: Option<String>,
+    pub stats_scroll_offset: usize,
 }
 
 impl App {
@@ -118,6 +124,10 @@ impl App {
 
             leaderboard: None,
             leaderboard_error: None,
+
+            race_history: None,
+            race_history_error: None,
+            stats_scroll_offset: 0,
         }
     }
 
@@ -367,6 +377,32 @@ impl App {
             Err(e) => {
                 self.leaderboard_error = Some(e.clone());
                 self.leaderboard = None;
+                Err(e)
+            }
+        }
+    }
+
+    pub fn refresh_race_history(&mut self, ws_url: &str) -> Result<(), String> {
+        let Some(account) = self.account.as_ref() else {
+            self.race_history = None;
+            self.race_history_error =
+                Some("Sign in to view your online race statistics".to_string());
+            self.stats_scroll_offset = 0;
+            return Ok(());
+        };
+
+        let url = auth::race_history_url_for_ws_url(ws_url, &account.username)?;
+        match auth::fetch_race_history(&url) {
+            Ok(data) => {
+                self.race_history = Some(data);
+                self.race_history_error = None;
+                self.stats_scroll_offset = 0;
+                Ok(())
+            }
+            Err(e) => {
+                self.race_history_error = Some(e.clone());
+                self.race_history = None;
+                self.stats_scroll_offset = 0;
                 Err(e)
             }
         }

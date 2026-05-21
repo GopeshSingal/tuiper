@@ -6,6 +6,7 @@ mod queue;
 mod race;
 mod results;
 mod shell;
+mod statistics;
 
 use crate::app::{App, Screen};
 
@@ -15,7 +16,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::Block;
 use ratatui::Frame;
 
-pub fn draw(frame: &mut Frame, app: &App) {
+pub fn draw(frame: &mut Frame, app: &mut App) {
     let area = frame.area();
     let theme = &app.theme;
     frame.render_widget(Block::default().style(base_style(theme)), area);
@@ -29,7 +30,7 @@ pub fn draw(frame: &mut Frame, app: &App) {
     }
 }
 
-fn draw_main_content(frame: &mut Frame, area: Rect, app: &App) {
+fn draw_main_content(frame: &mut Frame, area: Rect, app: &mut App) {
     let theme = &app.theme;
     match app.screen {
         Screen::Lobby => lobby::draw_lobby(frame, area, theme, app),
@@ -38,5 +39,6 @@ fn draw_main_content(frame: &mut Frame, area: Rect, app: &App) {
         Screen::Results => results::draw_results(frame, area, theme, app),
         Screen::Config => config::draw_config(frame, area, theme, app),
         Screen::Leaderboard => leaderboard::draw_leaderboard(frame, area, theme, app),
+        Screen::Statistics => statistics::draw_statistics(frame, area, app),
     }
 }

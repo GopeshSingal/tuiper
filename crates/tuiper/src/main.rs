@@ -39,6 +39,13 @@ fn handle_shell_nav(app: &mut App, key: KeyCode, ws_url: &str) -> bool {
             app.screen = Screen::Leaderboard;
             true
         }
+        KeyCode::Char('t') | KeyCode::Char('T') => {
+            if let Err(err) = app.refresh_race_history(ws_url) {
+                eprintln!("Race history refresh failed: {err}");
+            }
+            app.screen = Screen::Statistics;
+            true
+        }
         KeyCode::Char('c') | KeyCode::Char('C') => {
             app.theme_edit_row = 0;
             app.theme_edit_col = ThemeEditColumn::default();
@@ -232,6 +239,27 @@ fn run_app(
                         }
                         _ => {}
                     },
+                    Screen::Statistics => {
+                        match key.code {
+                            KeyCode::Char('q') | KeyCode::Char('Q') => {
+                                app.screen = Screen::Lobby;
+                                if let Err(err) = app.refresh_account_elo(ws_url) {
+                                    eprintln!("Failed to refresh account elo: {err}");
+                                }
+                            }
+                            KeyCode::Esc => {
+                                app.quit = true;
+                                break;
+                            }
+                            KeyCode::Up => {
+                                app.stats_scroll_offset = app.stats_scroll_offset.saturating_sub(1);
+                            }
+                            KeyCode::Down => {
+                                app.stats_scroll_offset = app.stats_scroll_offset.saturating_add(1);
+                            }
+                            _ => {}
+                        }
+                    }
                     Screen::Config => {
                         let fields: Vec<ThemeField> = ThemeField::iter().collect();
                         let n = fields.len();

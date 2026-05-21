@@ -1,5 +1,5 @@
 use percent_encoding::{utf8_percent_encode, NON_ALPHANUMERIC};
-use protocols::{AccountPublic, ApiError, AuthRequest, AuthResponse, LeaderboardResponse};
+use protocols::{AccountPublic, ApiError, AuthRequest, AuthResponse, LeaderboardResponse, RaceHistoryResponse};
 use serde::Deserialize;
 
 fn http_base_from_ws_url(ws_url: &str) -> Result<String, String> {
@@ -41,6 +41,17 @@ pub fn account_elo_url_for_ws_url(ws_url: &str, username: &str) -> Result<String
 pub fn leaderboard_url_for_ws_url(ws_url: &str) -> Result<String, String> {
     let base = http_base_from_ws_url(ws_url)?;
     Ok(format!("{base}/leaderboard"))
+}
+
+pub fn race_history_url_for_ws_url(ws_url: &str, username: &str) -> Result<String, String> {
+    let username = username.trim();
+    if username.is_empty() {
+        return Err("username was expected".to_string());
+    }
+
+    let base = http_base_from_ws_url(ws_url)?;
+    let encoded_user = utf8_percent_encode(username, NON_ALPHANUMERIC).to_string();
+    Ok(format!("{base}/accounts/{encoded_user}/races"))
 }
 
 pub fn ws_url_with_token(ws_base: &str, token: &str) -> String {
@@ -122,5 +133,25 @@ pub fn fetch_leaderboard(leaderboard_url: &str) -> Result<LeaderboardResponse, S
     match response.json::<ApiError>() {
         Ok(api_error) => Err(api_error.error),
         Err(_) => Err(format!("leaderboard fetch failed ({status})")),
+    }
+}
+
+pub fn fetch_race_history(race_history_url: &str) -> Result<RaceHistoryResponse, String> {
+    let client = reqwest::blocking::Client::new();
+    let response = client
+        .get(race_history_url)
+        .send()
+        .map_err(|e| format!("race history request failed: {e}"))?;
+
+    let status = response.status();
+    if status.is_success() {
+        return response
+            .json::<RaceHistoryResponse>()
+            .map_err(|e| format!("invalid race history response: {e}"));
+    }
+
+    match response.json::<ApiError>() {
+        Ok(api_error) => Err(api_error.error),
+        Err(_) => Err(format!("race history fetch failed ({status})")),
     }
 }

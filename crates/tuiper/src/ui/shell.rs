@@ -17,7 +17,7 @@ struct NavItem {
     screen: Screen,
 }
 
-const NAV_ITEMS: [NavItem; 3] = [
+const NAV_ITEMS: [NavItem; 4] = [
     NavItem {
         label: "Lobby",
         key_hint: Some("Q"),
@@ -27,6 +27,11 @@ const NAV_ITEMS: [NavItem; 3] = [
         label: "Leaderboard",
         key_hint: Some("L"),
         screen: Screen::Leaderboard,
+    },
+    NavItem {
+        label: "Statistics",
+        key_hint: Some("T"),
+        screen: Screen::Statistics,
     },
     NavItem {
         label: "Customize",
