@@ -32,7 +32,9 @@ pub(super) fn draw_config(frame: &mut Frame, area: Rect, theme: &Theme, app: &Ap
     let highlight_style = base_style(theme).add_modifier(Modifier::REVERSED);
     let normal_style = base_style(theme);
 
-    let rows: Vec<Row> = fields
+    let cursor_style_row = fields.len();
+
+    let mut rows: Vec<Row> = fields
         .iter()
         .enumerate()
         .map(|(i, &field)| {
@@ -59,6 +61,23 @@ pub(super) fn draw_config(frame: &mut Frame, area: Rect, theme: &Theme, app: &Ap
             ])
         })
         .collect();
+
+    let cursor_row_sel = app.theme_edit_row == cursor_style_row;
+    let cursor_field_st = if cursor_row_sel {
+        base_style(theme).add_modifier(Modifier::BOLD)
+    } else {
+        normal_style
+    };
+    let cursor_val_st = if cursor_row_sel {
+        highlight_style
+    } else {
+        normal_style
+    };
+    rows.push(Row::new(vec![
+        Cell::from("cursor style").style(cursor_field_st),
+        Cell::from(theme.cursor_style_label()).style(cursor_val_st),
+        Cell::from("—").style(normal_style),
+    ]));
 
     let widths = [
         Constraint::Percentage(52),
@@ -124,7 +143,7 @@ pub(super) fn draw_config(frame: &mut Frame, area: Rect, theme: &Theme, app: &Ap
     let hints = vec![
         Line::from(""),
         Line::from(Span::styled(
-            "Use arrow keys to navigate  Tab/ShiftTab: cycle palette or shade   R: reset   Q: save & back",
+            "Use arrow keys to navigate  Tab/ShiftTab: cycle palette, shade, or cursor style   R: reset   Q: save & back",
             base_style(theme).fg(Color::DarkGray),
         )),
     ];

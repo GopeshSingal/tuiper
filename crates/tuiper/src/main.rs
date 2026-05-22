@@ -263,6 +263,8 @@ fn run_app(
                     Screen::Config => {
                         let fields: Vec<ThemeField> = ThemeField::iter().collect();
                         let n = fields.len();
+                        let cursor_style_row = n;
+                        let on_cursor_style_row = app.theme_edit_row == cursor_style_row;
                         match key.code {
                             KeyCode::Char('q') => {
                                 let _ = theme::save(&app.theme);
@@ -275,35 +277,51 @@ fn run_app(
                                 }
                             }
                             KeyCode::Down => {
-                                if app.theme_edit_row + 1 < n {
+                                if app.theme_edit_row + 1 < n + 1 {
                                     app.theme_edit_row += 1;
                                 }
                             }
                             KeyCode::Left => {
-                                app.theme_edit_col = app.theme_edit_col.next_left();
+                                if on_cursor_style_row {
+                                    app.theme.cycle_cursor_style(-1);
+                                } else {
+                                    app.theme_edit_col = app.theme_edit_col.next_left();
+                                }
                             }
                             KeyCode::Right => {
-                                app.theme_edit_col = app.theme_edit_col.next_right();
+                                if on_cursor_style_row {
+                                    app.theme.cycle_cursor_style(1);
+                                } else {
+                                    app.theme_edit_col = app.theme_edit_col.next_right();
+                                }
                             }
                             KeyCode::Tab => {
-                                let field = fields[app.theme_edit_row];
-                                match app.theme_edit_col {
-                                    ThemeEditColumn::Palette => {
-                                        app.theme.cycle_palette(field, 1);
-                                    }
-                                    ThemeEditColumn::Shade => {
-                                        app.theme.cycle_shade(field, 1);
+                                if on_cursor_style_row {
+                                    app.theme.cycle_cursor_style(1);
+                                } else {
+                                    let field = fields[app.theme_edit_row];
+                                    match app.theme_edit_col {
+                                        ThemeEditColumn::Palette => {
+                                            app.theme.cycle_palette(field, 1);
+                                        }
+                                        ThemeEditColumn::Shade => {
+                                            app.theme.cycle_shade(field, 1);
+                                        }
                                     }
                                 }
                             }
                             KeyCode::BackTab => {
-                                let field = fields[app.theme_edit_row];
-                                match app.theme_edit_col {
-                                    ThemeEditColumn::Palette => {
-                                        app.theme.cycle_palette(field, -1);
-                                    }
-                                    ThemeEditColumn::Shade => {
-                                        app.theme.cycle_shade(field, -1);
+                                if on_cursor_style_row {
+                                    app.theme.cycle_cursor_style(-1);
+                                } else {
+                                    let field = fields[app.theme_edit_row];
+                                    match app.theme_edit_col {
+                                        ThemeEditColumn::Palette => {
+                                            app.theme.cycle_palette(field, -1);
+                                        }
+                                        ThemeEditColumn::Shade => {
+                                            app.theme.cycle_shade(field, -1);
+                                        }
                                     }
                                 }
                             }

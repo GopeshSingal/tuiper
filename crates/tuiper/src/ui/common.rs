@@ -1,7 +1,7 @@
-use crate::theme::{Theme, ThemeField};
+use crate::theme::{CursorStyle, Theme, ThemeField};
 use crate::typing::CharState;
 
-use ratatui::style::{Modifier, Style};
+use ratatui::style::{Color, Modifier, Style};
 use ratatui::text::{Line, Span};
 use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 
@@ -9,6 +9,55 @@ pub(super) fn base_style(theme: &Theme) -> Style {
     Style::default()
         .bg(theme.get(ThemeField::WindowBg))
         .fg(theme.get(ThemeField::BaseText))
+}
+
+fn cursor_text_fg(theme: &Theme, pending_error: bool) -> Color {
+    if pending_error {
+        theme.get(ThemeField::TypedIncorrect)
+    } else {
+        theme.get(ThemeField::CursorFg)
+    }
+}
+
+fn opponent_cursor_text_fg(theme: &Theme, pending_error: bool) -> Color {
+    if pending_error {
+        theme.get(ThemeField::TypedIncorrect)
+    } else {
+        theme.get(ThemeField::OppCursorFg)
+    }
+}
+
+fn cursor_current_style(theme: &Theme, pending_error: bool) -> Style {
+    let text_fg = cursor_text_fg(theme, pending_error);
+    match theme.cursor_style {
+        CursorStyle::Block => base_style(theme)
+            .fg(text_fg)
+            .bg(theme.get(ThemeField::CursorBg)),
+        CursorStyle::Underscore => base_style(theme)
+            .fg(text_fg)
+            .underline_color(theme.get(ThemeField::CursorBg))
+            .add_modifier(Modifier::UNDERLINED),
+    }
+}
+
+fn opponent_cursor_current_style(theme: &Theme, pending_error: bool) -> Style {
+    let text_fg = opponent_cursor_text_fg(theme, pending_error);
+    match theme.cursor_style {
+        CursorStyle::Block => base_style(theme)
+            .fg(text_fg)
+            .bg(theme.get(ThemeField::OppCursorBg)),
+        CursorStyle::Underscore => base_style(theme)
+            .fg(text_fg)
+            .underline_color(theme.get(ThemeField::OppCursorBg))
+            .add_modifier(Modifier::UNDERLINED),
+    }
+}
+
+fn underscore_cursor_display(c: char, line_color: Color) -> Option<(String, Style)> {
+    if c != ' ' {
+        return None;
+    }
+    Some(("▁".to_string(), Style::default().fg(line_color)))
 }
 
 fn typing_char_style(
@@ -20,15 +69,7 @@ fn typing_char_style(
 ) -> Style {
     let opp = opponent_cursor_idx == Some(i);
     if opp && matches!(state, CharState::Current) {
-        return if pending_error {
-            base_style(theme)
-                .bg(theme.get(ThemeField::OppCursorBg))
-                .fg(theme.get(ThemeField::TypedIncorrect))
-        } else {
-            base_style(theme)
-                .bg(theme.get(ThemeField::OppCursorBg))
-                .fg(theme.get(ThemeField::OppCursorFg))
-        };
+        return opponent_cursor_current_style(theme, pending_error);
     }
 
     let mut style = match state {
@@ -36,19 +77,20 @@ fn typing_char_style(
         CharState::Incorrect => base_style(theme)
             .fg(theme.get(ThemeField::TypedIncorrect))
             .add_modifier(Modifier::UNDERLINED),
-        CharState::Current if pending_error => base_style(theme)
-            .bg(theme.get(ThemeField::CursorBg))
-            .fg(theme.get(ThemeField::TypedIncorrect)),
-        CharState::Current => base_style(theme)
-            .bg(theme.get(ThemeField::CursorBg))
-            .fg(theme.get(ThemeField::CursorFg)),
+        CharState::Current => cursor_current_style(theme, pending_error),
         CharState::Untyped => base_style(theme).fg(theme.get(ThemeField::Untyped)),
     };
 
     if opp {
-        style = style
-            .bg(theme.get(ThemeField::OppCursorBg))
-            .fg(theme.get(ThemeField::OppCursorFg));
+        style = match theme.cursor_style {
+            CursorStyle::Block => style
+                .bg(theme.get(ThemeField::OppCursorBg))
+                .fg(theme.get(ThemeField::OppCursorFg)),
+            CursorStyle::Underscore => style
+                .fg(theme.get(ThemeField::OppCursorFg))
+                .underline_color(theme.get(ThemeField::OppCursorBg))
+                .add_modifier(Modifier::UNDERLINED),
+        };
     }
     style
 }
@@ -80,14 +122,44 @@ pub(super) fn line_from_typing(
         indexed_chars
             .map(|(i, c)| {
                 let (state, pe) = at(i);
-                let mut style = typing_char_style(theme, state, pe, opponent_cursor_idx, i);
+                let opp = opponent_cursor_idx == Some(i);
+                let (text, mut style) = if state == CharState::Current {
+                    if opp {
+                        if theme.cursor_style == CursorStyle::Underscore {
+                            if let Some(display) =
+                                underscore_cursor_display(c, theme.get(ThemeField::OppCursorBg))
+                            {
+                                display
+                            } else {
+                                (c.to_string(), opponent_cursor_current_style(theme, pe))
+                            }
+                        } else {
+                            (c.to_string(), opponent_cursor_current_style(theme, pe))
+                        }
+                    } else if theme.cursor_style == CursorStyle::Underscore {
+                        if let Some(display) =
+                            underscore_cursor_display(c, theme.get(ThemeField::CursorBg))
+                        {
+                            display
+                        } else {
+                            (c.to_string(), cursor_current_style(theme, pe))
+                        }
+                    } else {
+                        (c.to_string(), cursor_current_style(theme, pe))
+                    }
+                } else {
+                    (
+                        c.to_string(),
+                        typing_char_style(theme, state, pe, opponent_cursor_idx, i),
+                    )
+                };
                 if current_word_range
                     .as_ref()
                     .is_some_and(|range| range.contains(&i))
                 {
                     style = style.add_modifier(Modifier::BOLD);
                 }
-                Span::styled(c.to_string(), style)
+                Span::styled(text, style)
             })
             .collect::<Vec<Span>>(),
     )

@@ -8,7 +8,7 @@ name = "tuiper"
 path = "src/main.rs"
 
 [dependencies]
-ratatui = "0.28"
+ratatui = { version = "0.28", features = ["underline-color"] }
 crossterm = "0.28"
 rand = "0.8"
 clap = {

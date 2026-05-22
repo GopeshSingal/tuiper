@@ -81,12 +81,33 @@ impl ThemeEditColumn {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+#[serde(rename_all = "lowercase")]
+pub enum CursorStyle {
+    #[default]
+    Block,
+    Underscore,
+}
+
+impl CursorStyle {
+    const ALL: [Self; 2] = [Self::Block, Self::Underscore];
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Block => "Block",
+            Self::Underscore => "Underscore",
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Theme {
     #[serde(flatten)]
     #[serde(with = "color_map_serde")]
     pub fields: HashMap<ThemeField, Color>,
     pub is_truecolor: bool,
+    #[serde(default)]
+    pub cursor_style: CursorStyle,
 }
 
 impl Default for Theme {
@@ -108,6 +129,7 @@ impl Default for Theme {
         Self {
             fields,
             is_truecolor: detect_truecolor(),
+            cursor_style: CursorStyle::default(),
         }
     }
 }
@@ -159,6 +181,19 @@ impl Theme {
     pub fn shade_label(&self, field: ThemeField) -> &'static str {
         let c = self.get_grid_pos(field).map(|(_, c)| c).unwrap_or(5);
         SHADE_NAMES[c]
+    }
+
+    pub fn cursor_style_label(&self) -> &'static str {
+        self.cursor_style.label()
+    }
+
+    pub fn cycle_cursor_style(&mut self, delta: isize) {
+        let idx = CursorStyle::ALL
+            .iter()
+            .position(|&s| s == self.cursor_style)
+            .unwrap_or(0);
+        let next = (idx as isize + delta).rem_euclid(CursorStyle::ALL.len() as isize) as usize;
+        self.cursor_style = CursorStyle::ALL[next];
     }
 
     pub fn reset(&mut self) {
