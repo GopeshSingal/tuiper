@@ -3,6 +3,7 @@ mod config;
 mod leaderboard;
 mod lobby;
 mod login;
+mod logo;
 mod queue;
 mod race;
 mod results;

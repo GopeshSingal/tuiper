@@ -2,6 +2,7 @@ use crate::app::{App, LoginField};
 use crate::theme::{Theme, ThemeField};
 
 use super::common::{base_style, default_block, default_paragraph};
+use super::logo::{compact_logo_line, logo_lines, LOGO_WIDTH};
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier};
@@ -33,7 +34,7 @@ pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App
 
     let chunks = Layout::default()
         .direction(Direction::Vertical)
-        .constraints([Constraint::Min(6), Constraint::Length(1), Constraint::Length(3)])
+        .constraints([Constraint::Min(12), Constraint::Length(1), Constraint::Length(3)])
         .split(inner);
 
     let username_value = if app.login_username.is_empty() && app.login_focus == LoginField::Username
@@ -51,14 +52,13 @@ pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App
         "•".repeat(app.login_password.chars().count())
     };
 
-    let mut lines = vec![
-        Line::from(Span::styled(
-            "Welcome to Tuiper",
-            base_style(theme)
-                .fg(theme.get(ThemeField::TypedCorrect))
-                .add_modifier(Modifier::BOLD),
-        )),
-        Line::from(""),
+    let mut lines = if inner.width >= LOGO_WIDTH {
+        logo_lines(theme)
+    } else {
+        vec![compact_logo_line(theme)]
+    };
+    lines.push(Line::from(""));
+    lines.extend([
         field_line(
             theme,
             "Username",
@@ -71,7 +71,7 @@ pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App
             &password_display,
             app.login_focus == LoginField::Password,
         ),
-    ];
+    ]);
 
     if let Some(err) = &app.login_error {
         lines.push(Line::from(""));
