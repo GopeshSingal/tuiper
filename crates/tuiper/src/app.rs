@@ -139,11 +139,18 @@ impl App {
     }
 
     pub fn cycle_length(&mut self, delta: i32) {
-        let idx = match self.mode {
-            RaceMode::Words => &mut self.words_preset_idx,
-            RaceMode::Time => &mut self.time_preset_idx,
-        };
-        *idx = (*idx as i32 + delta).rem_euclid(3) as u8;
+        match self.mode {
+            RaceMode::Words => {
+                let len = WORDS_PRESETS.len() as i32;
+                self.words_preset_idx =
+                    (self.words_preset_idx as i32 + delta).rem_euclid(len) as u8;
+            }
+            RaceMode::Time => {
+                let len = TIME_PRESETS.len() as i32;
+                self.time_preset_idx =
+                    (self.time_preset_idx as i32 + delta).rem_euclid(len) as u8;
+            }
+        }
     }
 
     pub fn cycle_mode(&mut self, delta: i32) {
