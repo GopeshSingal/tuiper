@@ -6,7 +6,7 @@ use super::common::{base_style, default_block};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::Paragraph;
+use ratatui::widgets::{Paragraph, Wrap};
 use ratatui::Frame;
 
 const SIDEBAR_WIDTH: u16 = 24;
@@ -16,6 +16,13 @@ struct NavItem {
     key_hint: Option<&'static str>,
     screen: Screen,
 }
+
+pub const SHELL_SCREENS: [Screen; 4] = [
+    Screen::Lobby,
+    Screen::Leaderboard,
+    Screen::Statistics,
+    Screen::Config,
+];
 
 const NAV_ITEMS: [NavItem; 4] = [
     NavItem {
@@ -40,6 +47,15 @@ const NAV_ITEMS: [NavItem; 4] = [
     },
 ];
 
+pub fn adjacent_shell_screen(current: Screen, delta: i32) -> Screen {
+    let idx = SHELL_SCREENS
+        .iter()
+        .position(|&s| s == current)
+        .unwrap_or(0);
+    let next = (idx as i32 + delta).rem_euclid(SHELL_SCREENS.len() as i32) as usize;
+    SHELL_SCREENS[next]
+}
+
 pub fn split_shell(area: Rect) -> (Rect, Rect) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
@@ -53,7 +69,11 @@ pub fn draw_sidebar(frame: &mut Frame, area: Rect, theme: &Theme, screen: Screen
     let inner = block.inner(area);
     frame.render_widget(block, area);
 
-    let mut lines: Vec<Line> = vec![Line::from("")];
+    let hint_style = base_style(theme).fg(Color::DarkGray);
+    let mut lines: Vec<Line> = vec![
+        Line::from(Span::styled("Shift + ↑/↓ to navigate", hint_style)),
+        Line::from(""),
+    ];
     for item in NAV_ITEMS {
         let active = screen == item.screen;
         let prefix = if active { "> " } else { "  " };
@@ -75,7 +95,9 @@ pub fn draw_sidebar(frame: &mut Frame, area: Rect, theme: &Theme, screen: Screen
     }
 
     frame.render_widget(
-        Paragraph::new(lines).style(base_style(theme)),
+        Paragraph::new(lines)
+            .wrap(Wrap { trim: false })
+            .style(base_style(theme)),
         inner,
     );
 }

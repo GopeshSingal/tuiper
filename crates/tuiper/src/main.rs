@@ -27,29 +27,75 @@ fn ws_url() -> String {
     std::env::var("WS_URL").unwrap_or_else(|_| DEFAULT_WS_URL.to_string())
 }
 
-fn handle_shell_nav(app: &mut App, key: KeyCode, ws_url: &str) -> bool {
-    if !app.screen.uses_shell() {
-        return false;
+fn go_to_shell_screen(app: &mut App, screen: Screen, ws_url: &str) {
+    if app.screen == Screen::Config && screen == Screen::Lobby {
+        let _ = theme::save(&app.theme);
     }
-    match key {
-        KeyCode::Char('l') | KeyCode::Char('L') => {
+
+    match screen {
+        Screen::Lobby => {
+            if let Err(err) = app.refresh_account_elo(ws_url) {
+                eprintln!("Failed to refresh account elo: {err}");
+            }
+        }
+        Screen::Leaderboard => {
             if let Err(err) = app.refresh_leaderboard(ws_url) {
                 eprintln!("Leaderboard refresh failed: {err}");
             }
-            app.screen = Screen::Leaderboard;
-            true
         }
-        KeyCode::Char('t') | KeyCode::Char('T') => {
+        Screen::Statistics => {
             if let Err(err) = app.refresh_race_history(ws_url) {
                 eprintln!("Race history refresh failed: {err}");
             }
-            app.screen = Screen::Statistics;
+        }
+        Screen::Config => {
+            app.theme_edit_row = 0;
+            app.theme_edit_col = ThemeEditColumn::default();
+        }
+        _ => {}
+    }
+
+    app.screen = screen;
+}
+
+fn handle_shell_nav(app: &mut App, key: &event::KeyEvent, ws_url: &str) -> bool {
+    if !app.screen.uses_shell() {
+        return false;
+    }
+
+    if key.modifiers.contains(KeyModifiers::SHIFT) {
+        match key.code {
+            KeyCode::Up => {
+                go_to_shell_screen(
+                    app,
+                    ui::adjacent_shell_screen(app.screen, -1),
+                    ws_url,
+                );
+                return true;
+            }
+            KeyCode::Down => {
+                go_to_shell_screen(
+                    app,
+                    ui::adjacent_shell_screen(app.screen, 1),
+                    ws_url,
+                );
+                return true;
+            }
+            _ => {}
+        }
+    }
+
+    match key.code {
+        KeyCode::Char('l') | KeyCode::Char('L') => {
+            go_to_shell_screen(app, Screen::Leaderboard, ws_url);
+            true
+        }
+        KeyCode::Char('t') | KeyCode::Char('T') => {
+            go_to_shell_screen(app, Screen::Statistics, ws_url);
             true
         }
         KeyCode::Char('c') | KeyCode::Char('C') => {
-            app.theme_edit_row = 0;
-            app.theme_edit_col = ThemeEditColumn::default();
-            app.screen = Screen::Config;
+            go_to_shell_screen(app, Screen::Config, ws_url);
             true
         }
         _ => false,
@@ -102,7 +148,7 @@ fn run_app(
                 if key.kind != KeyEventKind::Press {
                     continue;
                 }
-                if handle_shell_nav(app, key.code, ws_url) {
+                if handle_shell_nav(app, &key, ws_url) {
                     continue;
                 }
                 match app.screen {
@@ -228,10 +274,7 @@ fn run_app(
                     },
                     Screen::Leaderboard => match key.code {
                         KeyCode::Char('q') | KeyCode::Char('Q') => {
-                            app.screen = Screen::Lobby;
-                            if let Err(err) = app.refresh_account_elo(ws_url) {
-                                eprintln!("Failed to refresh account elo: {err}");
-                            }
+                            go_to_shell_screen(app, Screen::Lobby, ws_url);
                         }
                         KeyCode::Esc => {
                             app.quit = true;
@@ -242,19 +285,16 @@ fn run_app(
                     Screen::Statistics => {
                         match key.code {
                             KeyCode::Char('q') | KeyCode::Char('Q') => {
-                                app.screen = Screen::Lobby;
-                                if let Err(err) = app.refresh_account_elo(ws_url) {
-                                    eprintln!("Failed to refresh account elo: {err}");
-                                }
+                                go_to_shell_screen(app, Screen::Lobby, ws_url);
                             }
                             KeyCode::Esc => {
                                 app.quit = true;
                                 break;
                             }
-                            KeyCode::Up => {
+                            KeyCode::Up if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                                 app.stats_scroll_offset = app.stats_scroll_offset.saturating_sub(1);
                             }
-                            KeyCode::Down => {
+                            KeyCode::Down if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                                 app.stats_scroll_offset = app.stats_scroll_offset.saturating_add(1);
                             }
                             _ => {}
@@ -267,16 +307,14 @@ fn run_app(
                         let on_cursor_style_row = app.theme_edit_row == cursor_style_row;
                         match key.code {
                             KeyCode::Char('q') => {
-                                let _ = theme::save(&app.theme);
-                                app.screen = Screen::Lobby;
-                                refresh_lobby_elo(app);
+                                go_to_shell_screen(app, Screen::Lobby, ws_url);
                             }
-                            KeyCode::Up => {
+                            KeyCode::Up if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                                 if app.theme_edit_row > 0 {
                                     app.theme_edit_row -= 1;
                                 }
                             }
-                            KeyCode::Down => {
+                            KeyCode::Down if !key.modifiers.contains(KeyModifiers::SHIFT) => {
                                 if app.theme_edit_row + 1 < n + 1 {
                                     app.theme_edit_row += 1;
                                 }

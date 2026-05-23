@@ -8,6 +8,8 @@ mod results;
 mod shell;
 mod statistics;
 
+pub use shell::adjacent_shell_screen;
+
 use crate::app::{App, Screen};
 
 use common::base_style;
