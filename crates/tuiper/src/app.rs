@@ -15,6 +15,7 @@ use std::time::Instant;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
+    Login,
     Lobby,
     Queue,
     Race,
@@ -22,6 +23,12 @@ pub enum Screen {
     Config,
     Leaderboard,
     Statistics,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginField {
+    Username,
+    Password,
 }
 
 impl Screen {
@@ -76,6 +83,12 @@ pub struct App {
     pub time_preset_idx: u8,
 
     pub account: Option<AccountPublic>,
+    pub auth_token: Option<String>,
+
+    pub login_username: String,
+    pub login_password: String,
+    pub login_focus: LoginField,
+    pub login_error: Option<String>,
 
     pub leaderboard: Option<LeaderboardResponse>,
     pub leaderboard_error: Option<String>,
@@ -88,7 +101,7 @@ pub struct App {
 impl App {
     pub fn new() -> Self {
         Self {
-            screen: Screen::Lobby,
+            screen: Screen::Login,
             typing: None,
             result: None,
             quit: false,
@@ -121,6 +134,12 @@ impl App {
             time_preset_idx: 1,
 
             account: None,
+            auth_token: None,
+
+            login_username: String::new(),
+            login_password: String::new(),
+            login_focus: LoginField::Username,
+            login_error: None,
 
             leaderboard: None,
             leaderboard_error: None,
@@ -129,6 +148,40 @@ impl App {
             race_history_error: None,
             stats_scroll_offset: 0,
         }
+    }
+
+    pub fn cycle_login_focus(&mut self, _delta: i32) {
+        self.login_focus = match self.login_focus {
+            LoginField::Username => LoginField::Password,
+            LoginField::Password => LoginField::Username,
+        };
+    }
+
+    pub fn login_field_mut(&mut self) -> &mut String {
+        match self.login_focus {
+            LoginField::Username => &mut self.login_username,
+            LoginField::Password => &mut self.login_password,
+        }
+    }
+
+    pub fn complete_login(&mut self, token: String, account: AccountPublic) {
+        self.auth_token = Some(token);
+        self.account = Some(account);
+        self.login_username.clear();
+        self.login_password.clear();
+        self.login_error = None;
+        self.login_focus = LoginField::Username;
+        self.screen = Screen::Lobby;
+    }
+
+    pub fn enter_as_guest(&mut self) {
+        self.auth_token = None;
+        self.account = None;
+        self.login_username.clear();
+        self.login_password.clear();
+        self.login_error = None;
+        self.login_focus = LoginField::Username;
+        self.screen = Screen::Lobby;
     }
 
     pub fn lobby_value(&self) -> u32 {

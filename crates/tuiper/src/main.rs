@@ -9,7 +9,6 @@ mod words;
 use app::{App, Screen};
 use theme::{ThemeEditColumn, ThemeField};
 
-use clap::Parser;
 use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
 use dotenvy::dotenv;
 use ratatui::backend::CrosstermBackend;
@@ -102,21 +101,35 @@ fn handle_shell_nav(app: &mut App, key: &event::KeyEvent, ws_url: &str) -> bool 
     }
 }
 
-#[derive(Parser, Debug)]
-#[command(name = "tuiper", about = "Terminal typing practice")]
-struct Cli {
-    #[arg(long)]
-    user: Option<String>,
-    #[arg(long)]
-    password: Option<String>,
-}
+fn submit_login(app: &mut App, ws_url: &str) {
+    if app.login_username.trim().is_empty() {
+        app.enter_as_guest();
+        return;
+    }
 
-fn validate_cli(cli: &Cli) {
-    match (&cli.user, &cli.password) {
-        (Some(_), Some(_)) | (None, None) => {}
-        _ => {
-            eprintln!("error: --user and --password must be given together");
-            std::process::exit(1);
+    let auth_url = match auth::auth_url_for_ws_url(ws_url) {
+        Ok(url) => url,
+        Err(e) => {
+            app.login_error = Some(e);
+            app.login_password.clear();
+            return;
+        }
+    };
+
+    match auth::login(
+        &auth_url,
+        app.login_username.trim(),
+        &app.login_password,
+    ) {
+        Ok((token, account)) => {
+            app.complete_login(token, account);
+            if let Err(err) = app.refresh_account_elo(ws_url) {
+                eprintln!("Failed to refresh account elo: {err}");
+            }
+        }
+        Err(e) => {
+            app.login_error = Some(e);
+            app.login_password.clear();
         }
     }
 }
@@ -126,7 +139,6 @@ fn run_app(
     app: &mut App,
     main_tx: &mpsc::Sender<ServerMessage>,
     main_rx: &mpsc::Receiver<ServerMessage>,
-    auth_token: &Option<String>,
     ws_url: &str,
 ) -> io::Result<()> {
     let refresh_lobby_elo = |app: &mut App| {
@@ -152,6 +164,30 @@ fn run_app(
                     continue;
                 }
                 match app.screen {
+                    Screen::Login => match key.code {
+                        KeyCode::Esc => {
+                            app.quit = true;
+                            break;
+                        }
+                        KeyCode::Tab => {
+                            app.cycle_login_focus(1);
+                        }
+                        KeyCode::BackTab => {
+                            app.cycle_login_focus(-1);
+                        }
+                        KeyCode::Backspace => {
+                            app.login_field_mut().pop();
+                            app.login_error = None;
+                        }
+                        KeyCode::Enter => {
+                            submit_login(app, ws_url);
+                        }
+                        KeyCode::Char(c) => {
+                            app.login_field_mut().push(c);
+                            app.login_error = None;
+                        }
+                        _ => {}
+                    },
                     Screen::Lobby => match key.code {
                         KeyCode::Char('q') | KeyCode::Esc => {
                             app.quit = true;
@@ -169,7 +205,7 @@ fn run_app(
                                 app.ws_tx = Some(app_tx.clone());
                                 network::run_ws_thread(
                                     ws_url.to_string(),
-                                    auth_token.clone(),
+                                    app.auth_token.clone(),
                                     main_tx.clone(),
                                     app_rx,
                                 );
@@ -260,7 +296,7 @@ fn run_app(
                                     app.ws_tx = Some(app_tx.clone());
                                     network::run_ws_thread(
                                         ws_url.to_string(),
-                                        auth_token.clone(),
+                                        app.auth_token.clone(),
                                         main_tx.clone(),
                                         app_rx,
                                     );
@@ -382,32 +418,7 @@ fn run_app(
 
 fn main() -> io::Result<()> {
     dotenv().ok();
-    let cli = Cli::parse();
-    validate_cli(&cli);
     let current_ws_url = ws_url();
-    let auth_result = match (&cli.user, &cli.password) {
-        (Some(user), Some(password)) => {
-            let auth_url = match auth::auth_url_for_ws_url(&current_ws_url) {
-                Ok(url) => url,
-                Err(e) => {
-                    eprintln!("Login verification failed: {e}");
-                    std::process::exit(1);
-                }
-            };
-            match auth::login(&auth_url, user.trim(), password) {
-                Ok(result) => Some(result),
-                Err(e) => {
-                    eprintln!("Login verification failed: {e}");
-                    std::process::exit(1);
-                }
-            }
-        }
-        _ => None,
-    };
-    let (auth_token, account) = match auth_result {
-        Some((token, account)) => (Some(token), Some(account)),
-        None => (None, None),
-    };
 
     crossterm::terminal::enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -422,17 +433,12 @@ fn main() -> io::Result<()> {
     let (main_tx, main_rx) = mpsc::channel();
 
     let mut app = App::new();
-    app.account = account;
-    if let Err(err) = app.refresh_account_elo(&current_ws_url) {
-        eprintln!("Failed to refresh account elo: {err}");
-    }
 
     let _ = run_app(
         &mut terminal,
         &mut app,
         &main_tx,
         &main_rx,
-        &auth_token,
         &current_ws_url,
     );
 

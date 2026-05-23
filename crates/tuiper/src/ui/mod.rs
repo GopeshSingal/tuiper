@@ -2,6 +2,7 @@ mod common;
 mod config;
 mod leaderboard;
 mod lobby;
+mod login;
 mod queue;
 mod race;
 mod results;
@@ -35,6 +36,7 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
 fn draw_main_content(frame: &mut Frame, area: Rect, app: &mut App) {
     let theme = &app.theme;
     match app.screen {
+        Screen::Login => login::draw_login(frame, area, theme, app),
         Screen::Lobby => lobby::draw_lobby(frame, area, theme, app),
         Screen::Queue => queue::draw_queue(frame, area, theme),
         Screen::Race => race::draw_race(frame, area, theme, app),

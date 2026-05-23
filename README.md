@@ -4,9 +4,10 @@ A terminal user-interface game for practicing typing and racing against typists.
 ## How to run
 1. Install Rust
 2. ``git clone https://github.com/GopeshSingal/tuiper.git``
-3. You can either play as a guest online or have an account to track progress
-    * Play as guest: ``cargo run --release -p tuiper``
-    * Make account / sign in: ``cargo run --release -p tuiper -- --user <your_user> --password <your_password>`` First time logging in will create the account permanently. 
+3. Run ``cargo run --release -p tuiper``
+4. At the login screen, either:
+    * Play as guest: leave username empty and press Enter
+    * Sign in: enter your username and password, then press Enter. First time signing in will create the account permanently.
 
 ## Features
 - Solo practicing mode featuring Time and Words mode
