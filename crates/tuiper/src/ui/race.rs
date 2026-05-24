@@ -3,7 +3,7 @@ use crate::mode::RaceMode;
 use crate::theme::{Theme, ThemeField};
 use crate::typing::{CharState, TypingState};
 
-use super::common::{base_style, default_block, default_paragraph, line_from_typing};
+use super::common::{base_style, default_block, default_paragraph, lines_from_typing, typing_paragraph};
 
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier};
@@ -194,9 +194,13 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
         None
     };
 
-    let line = line_from_typing(
+    let block = default_block("Type here", theme);
+    let inner = block.inner(area);
+
+    let lines = lines_from_typing(
         theme,
-        text_chars.iter().cloned().enumerate(),
+        inner.width,
+        &text_chars,
         |i| {
             (
                 states.get(i).copied().unwrap_or(CharState::Untyped),
@@ -207,10 +211,8 @@ fn render_race_text(frame: &mut Frame, theme: &Theme, app: &App, t: &TypingState
         current_word,
     );
 
-    let block = default_block("Type here", theme);
-    let inner = block.inner(area);
     frame.render_widget(block, area);
-    frame.render_widget(default_paragraph(line, theme), inner);
+    frame.render_widget(typing_paragraph(lines, theme), inner);
 }
 
 fn render_race_loading(frame: &mut Frame, theme: &Theme, area: Rect) {
