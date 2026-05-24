@@ -1,4 +1,5 @@
 use crate::auth;
+use crate::mode::{self, ModeConfig, RaceMode, TIME_PRESETS, WORDS_PRESETS};
 use crate::theme::{self, Theme, ThemeEditColumn};
 use crate::typing::{TypingState, TypingStats};
 use crate::words::{generate_next_chunk, generate_words_text};
@@ -37,16 +38,7 @@ impl Screen {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum RaceMode {
-    Time,
-    Words,
-}
-
 const REFILL_THRESHOLD: usize = 10;
-
-pub const WORDS_PRESETS: [u32; 4] = [10, 25, 50, 100];
-pub const TIME_PRESETS: [u32; 3] = [15, 30, 60];
 
 pub struct App {
     pub screen: Screen,
@@ -100,6 +92,7 @@ pub struct App {
 
 impl App {
     pub fn new() -> Self {
+        let mode_config = mode::load();
         Self {
             screen: Screen::Login,
             typing: None,
@@ -129,9 +122,9 @@ impl App {
             theme_edit_col: ThemeEditColumn::default(),
 
             // race mode
-            mode: RaceMode::Time,
-            words_preset_idx: 1,
-            time_preset_idx: 1,
+            mode: mode_config.mode,
+            words_preset_idx: mode_config.words_preset_idx,
+            time_preset_idx: mode_config.time_preset_idx,
 
             account: None,
             auth_token: None,
@@ -191,6 +184,18 @@ impl App {
         }
     }
 
+    fn mode_config(&self) -> ModeConfig {
+        ModeConfig {
+            mode: self.mode,
+            words_preset_idx: self.words_preset_idx,
+            time_preset_idx: self.time_preset_idx,
+        }
+    }
+
+    pub fn persist_mode(&self) {
+        let _ = mode::save(&self.mode_config());
+    }
+
     pub fn cycle_length(&mut self, delta: i32) {
         match self.mode {
             RaceMode::Words => {
@@ -204,6 +209,7 @@ impl App {
                     (self.time_preset_idx as i32 + delta).rem_euclid(len) as u8;
             }
         }
+        self.persist_mode();
     }
 
     pub fn cycle_mode(&mut self, delta: i32) {
@@ -218,6 +224,7 @@ impl App {
                 RaceMode::Words => RaceMode::Time,
             }
         }
+        self.persist_mode();
     }
 
     pub fn handle_server_message(&mut self, msg: ServerMessage) {

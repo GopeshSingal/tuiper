@@ -1,4 +1,5 @@
-use crate::app::{App, RaceMode};
+use crate::app::App;
+use crate::mode::RaceMode;
 use crate::theme::{Theme, ThemeField};
 use crate::typing::{CharState, TypingState};
 

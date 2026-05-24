@@ -1,4 +1,5 @@
-use crate::app::{App, RaceMode};
+use crate::app::App;
+use crate::mode::RaceMode;
 use crate::theme::{Theme, ThemeField};
 
 use super::common::{base_style, default_block, default_paragraph};

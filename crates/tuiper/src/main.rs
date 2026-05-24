@@ -1,5 +1,6 @@
 mod app;
 mod auth;
+mod mode;
 mod network;
 mod theme;
 mod typing;
@@ -441,6 +442,8 @@ fn main() -> io::Result<()> {
         &main_rx,
         &current_ws_url,
     );
+
+    app.persist_mode();
 
     crossterm::execute!(
         terminal.backend_mut(),

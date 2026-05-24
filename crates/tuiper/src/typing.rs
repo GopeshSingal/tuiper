@@ -1,6 +1,6 @@
 use std::time::Instant;
 
-use crate::app::RaceMode;
+use crate::mode::RaceMode;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CharState {
