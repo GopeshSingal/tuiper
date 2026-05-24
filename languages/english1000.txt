@@ -238,7 +238,6 @@ draw
 left
 late
 run
-don't
 while
 press
 close
@@ -351,7 +350,7 @@ heard
 best
 hour
 better
-true .
+true
 during
 hundred
 five
@@ -593,7 +592,7 @@ finish
 happy
 hope
 flower
-clothe
+clothes
 strange
 gone
 jump
@@ -788,7 +787,6 @@ provide
 agree
 thus
 capital
-won't
 chair
 danger
 fruit
