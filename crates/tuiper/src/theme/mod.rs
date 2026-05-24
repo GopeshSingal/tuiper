@@ -105,6 +105,7 @@ pub struct Theme {
     #[serde(flatten)]
     #[serde(with = "color_map_serde")]
     pub fields: HashMap<ThemeField, Color>,
+    #[serde(skip)]
     pub is_truecolor: bool,
     #[serde(default)]
     pub cursor_style: CursorStyle,
@@ -252,16 +253,27 @@ pub fn theme_config_path() -> Option<PathBuf> {
 }
 
 pub fn detect_truecolor() -> bool {
-    supports_color::on(Stream::Stdout)
-        .map(|s| s.has_16m)
-        .unwrap_or(false)
+    let support = supports_color::on(Stream::Stdout);
+
+    if support.map(|s| s.has_16m).unwrap_or(false) {
+        return true;
+    }
+
+    #[cfg(windows)]
+    if std::io::IsTerminal::is_terminal(&std::io::stdout()) && support.is_some() {
+        return true;
+    }
+
+    false
 }
 
 pub fn load() -> Theme {
-    theme_config_path()
+    let mut theme: Theme = theme_config_path()
         .and_then(|path| fs::read_to_string(path).ok())
         .and_then(|data_str| from_str(&data_str).ok())
-        .unwrap_or_default()
+        .unwrap_or_default();
+    theme.is_truecolor = detect_truecolor();
+    theme
 }
 
 pub fn save(theme: &Theme) -> io::Result<()> {
