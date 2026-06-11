@@ -22,6 +22,29 @@ fn http_base_from_ws_url(ws_url: &str) -> Result<String, String> {
     Ok(format!("{scheme}://{authority}"))
 }
 
+/// Returns true when `WS_URL` uses cleartext `ws://` against a non-localhost host.
+pub fn is_insecure_ws_url(ws_url: &str) -> bool {
+    let ws_url = ws_url.trim();
+    let Some(rest) = ws_url.strip_prefix("ws://") else {
+        return false;
+    };
+    let authority_end = rest.find('/').unwrap_or(rest.len());
+    let authority = rest[..authority_end].trim();
+    let host = authority.split(':').next().unwrap_or(authority).trim();
+    if host.is_empty() {
+        return false;
+    }
+    !matches!(host, "localhost" | "127.0.0.1" | "::1")
+}
+
+pub fn insecure_ws_url_warning(ws_url: &str) -> Option<&'static str> {
+    if is_insecure_ws_url(ws_url) {
+        Some("Warning: WS_URL uses ws:// over the public internet. Use wss:// in production.")
+    } else {
+        None
+    }
+}
+
 pub fn auth_url_for_ws_url(ws_url: &str) -> Result<String, String> {
     let base = http_base_from_ws_url(ws_url)?;
     Ok(format!("{base}/auth"))

@@ -20,7 +20,7 @@ use ratatui::layout::Rect;
 use ratatui::widgets::Block;
 use ratatui::Frame;
 
-pub fn draw(frame: &mut Frame, app: &mut App) {
+pub fn draw(frame: &mut Frame, app: &mut App, ws_url: &str) {
     let area = frame.area();
     let theme = &app.theme;
     frame.render_widget(Block::default().style(base_style(theme)), area);
@@ -28,16 +28,16 @@ pub fn draw(frame: &mut Frame, app: &mut App) {
     if app.screen.uses_shell() {
         let (sidebar, main) = shell::split_shell(area);
         shell::draw_sidebar(frame, sidebar, theme, app.screen);
-        draw_main_content(frame, main, app);
+        draw_main_content(frame, main, app, ws_url);
     } else {
-        draw_main_content(frame, area, app);
+        draw_main_content(frame, area, app, ws_url);
     }
 }
 
-fn draw_main_content(frame: &mut Frame, area: Rect, app: &mut App) {
+fn draw_main_content(frame: &mut Frame, area: Rect, app: &mut App, ws_url: &str) {
     let theme = &app.theme;
     match app.screen {
-        Screen::Login => login::draw_login(frame, area, theme, app),
+        Screen::Login => login::draw_login(frame, area, theme, app, ws_url),
         Screen::Lobby => lobby::draw_lobby(frame, area, theme, app),
         Screen::Queue => queue::draw_queue(frame, area, theme),
         Screen::Race => race::draw_race(frame, area, theme, app),

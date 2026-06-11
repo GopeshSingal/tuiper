@@ -153,7 +153,7 @@ fn run_app(
             app.handle_server_message(msg);
         }
 
-        terminal.draw(|f| ui::draw(f, app))?;
+        terminal.draw(|f| ui::draw(f, app, ws_url))?;
         app.tick();
 
         if event::poll(Duration::from_millis(50))? {

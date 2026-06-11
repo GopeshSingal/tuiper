@@ -5,7 +5,15 @@ A terminal user-interface game for practicing typing and racing against typists.
 1. Install Rust
 2. ``git clone https://github.com/GopeshSingal/tuiper.git``
 3. Run ``cargo run --release -p tuiper``
-4. At the login screen, either:
+4. Set the server URL (optional; defaults to local dev):
+
+   ```bash
+   cp .env.example .env
+   # Production: WS_URL=wss://tuiper.com/ws
+   # Local dev:  WS_URL=ws://127.0.0.1:8080/ws
+   ```
+
+5. At the login screen, either:
     * Play as guest: leave username empty and press Enter
     * Sign in: enter your username and password, then press Enter. First time signing in will create the account permanently.
 

@@ -27,7 +27,7 @@ fn field_line(
     ])
 }
 
-pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App) {
+pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App, ws_url: &str) {
     let block = default_block("Sign in", theme);
     let inner = block.inner(area);
     frame.render_widget(block, area);
@@ -72,6 +72,14 @@ pub(super) fn draw_login(frame: &mut Frame, area: Rect, theme: &Theme, app: &App
             app.login_focus == LoginField::Password,
         ),
     ]);
+
+    if let Some(warning) = crate::auth::insecure_ws_url_warning(ws_url) {
+        lines.push(Line::from(""));
+        lines.push(Line::from(Span::styled(
+            warning,
+            base_style(theme).fg(Color::Yellow),
+        )));
+    }
 
     if let Some(err) = &app.login_error {
         lines.push(Line::from(""));
