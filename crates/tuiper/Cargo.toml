@@ -18,7 +18,7 @@ protocols = {
     path = "../protocols"
 }
 tokio = { version = "1.0", features = ["full"] }
-tokio-tungstenite = "0.24"
+tokio-tungstenite = { version = "0.24", features = ["rustls-tls-native-roots"] }
 futures-util = "0.3"
 reqwest = {
     version = "0.12",
