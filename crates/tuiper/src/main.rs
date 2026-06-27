@@ -21,7 +21,11 @@ use std::time::Duration;
 use protocols::{ClientMessage, ServerMessage};
 use strum::IntoEnumIterator;
 
+#[cfg(debug_assertions)]
 const DEFAULT_WS_URL: &str = "ws://127.0.0.1:8080/ws";
+
+#[cfg(not(debug_assertions))]
+const DEFAULT_WS_URL: &str = "wss://tuiper.com/ws";
 
 fn ws_url() -> String {
     std::env::var("WS_URL").unwrap_or_else(|_| DEFAULT_WS_URL.to_string())
