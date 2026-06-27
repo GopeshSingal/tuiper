@@ -32,15 +32,19 @@ fn go_to_shell_screen(app: &mut App, screen: Screen, ws_url: &str) {
         let _ = theme::save(&app.theme);
     }
 
+    let mut target = screen;
+
     match screen {
         Screen::Lobby => {
             if let Err(err) = app.refresh_account_elo(ws_url) {
-                eprintln!("Failed to refresh account elo: {err}");
+                app.push_notification(format!("Failed to refresh account elo: {err}"));
             }
         }
         Screen::Leaderboard => {
             if let Err(err) = app.refresh_leaderboard(ws_url) {
-                eprintln!("Leaderboard refresh failed: {err}");
+                app.leaderboard_error = None;
+                app.push_notification(format!("Could not load leaderboard: {err}"));
+                target = Screen::Lobby;
             }
         }
         Screen::Statistics => {
@@ -55,7 +59,7 @@ fn go_to_shell_screen(app: &mut App, screen: Screen, ws_url: &str) {
         _ => {}
     }
 
-    app.screen = screen;
+    app.screen = target;
 }
 
 fn handle_shell_nav(app: &mut App, key: &event::KeyEvent, ws_url: &str) -> bool {
@@ -125,7 +129,7 @@ fn submit_login(app: &mut App, ws_url: &str) {
         Ok((token, account)) => {
             app.complete_login(token, account);
             if let Err(err) = app.refresh_account_elo(ws_url) {
-                eprintln!("Failed to refresh account elo: {err}");
+                app.push_notification(format!("Failed to refresh account elo: {err}"));
             }
         }
         Err(e) => {
@@ -144,7 +148,7 @@ fn run_app(
 ) -> io::Result<()> {
     let refresh_lobby_elo = |app: &mut App| {
         if let Err(err) = app.refresh_account_elo(ws_url) {
-            eprintln!("Failed to refresh account elo: {err}");
+            app.push_notification(format!("Failed to refresh account elo: {err}"));
         }
     };
 

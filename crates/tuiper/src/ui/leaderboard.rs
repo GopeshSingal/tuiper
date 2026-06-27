@@ -1,5 +1,5 @@
 use crate::app::App;
-use crate::theme::{Theme, ThemeField};
+use crate::theme::Theme;
 
 use super::common::{base_style, default_block, default_paragraph};
 
@@ -19,14 +19,6 @@ pub(super) fn draw_leaderboard(frame: &mut Frame, area: Rect, theme: &Theme, app
         .split(inner);
 
     let mut lines: Vec<Line> = Vec::new();
-
-    if let Some(err) = &app.leaderboard_error {
-        lines.push(Line::from(Span::styled(
-            format!("Could not load: {err}"),
-            base_style(theme).fg(theme.get(ThemeField::TypedIncorrect)),
-        )));
-        lines.push(Line::from(""));
-    }
 
     match &app.leaderboard {
         Some(lb) => {
@@ -71,13 +63,12 @@ pub(super) fn draw_leaderboard(frame: &mut Frame, area: Rect, theme: &Theme, app
                 }
             }
         }
-        None if app.leaderboard_error.is_none() => {
+        None => {
             lines.push(Line::from(Span::styled(
                 "No data loaded.",
                 base_style(theme).fg(Color::DarkGray),
             )));
         }
-        None => {}
     }
 
     frame.render_widget(default_paragraph(lines, theme), chunks[0]);

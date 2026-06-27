@@ -12,7 +12,15 @@ use protocols::{
 };
 
 use std::sync::mpsc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
+
+const NOTIFICATION_TTL: Duration = Duration::from_secs(3);
+
+#[derive(Debug, Clone)]
+pub struct Notification {
+    pub message: String,
+    pub since: Instant,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Screen {
@@ -88,6 +96,8 @@ pub struct App {
     pub race_history: Option<RaceHistoryResponse>,
     pub race_history_error: Option<String>,
     pub stats_scroll_offset: usize,
+
+    pub notification: Option<Notification>,
 }
 
 impl App {
@@ -140,6 +150,25 @@ impl App {
             race_history: None,
             race_history_error: None,
             stats_scroll_offset: 0,
+
+            notification: None,
+        }
+    }
+
+    pub fn push_notification(&mut self, message: impl Into<String>) {
+        self.notification = Some(Notification {
+            message: message.into(),
+            since: Instant::now(),
+        });
+    }
+
+    fn expire_notification(&mut self) {
+        if self
+            .notification
+            .as_ref()
+            .is_some_and(|n| n.since.elapsed() >= NOTIFICATION_TTL)
+        {
+            self.notification = None;
         }
     }
 
@@ -279,7 +308,8 @@ impl App {
                 self.multiplayer_start_at_unix_ms = None;
                 self.screen = Screen::Results;
             }
-            Error { message: _ } => {
+            Error { message } => {
+                self.push_notification(message);
                 self.multiplayer_race = false;
                 self.multiplayer_session_active = false;
                 self.multiplayer_race_t0 = None;
@@ -343,6 +373,8 @@ impl App {
     }
 
     pub fn tick(&mut self) {
+        self.expire_notification();
+
         if let Some(ref mut t) = self.typing {
             if let Some(start_at_unix_ms) = self.multiplayer_start_at_unix_ms {
                 if t.start_time().is_none() && now_unix_ms() >= start_at_unix_ms {

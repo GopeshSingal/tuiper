@@ -1,5 +1,6 @@
 use futures_util::{SinkExt, StreamExt};
-use std::sync::mpsc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::{mpsc, Arc};
 use tokio::sync::mpsc as tmpsc;
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 
@@ -46,14 +47,25 @@ async fn ws_loop(
         }
     });
 
+    let error_sent = Arc::new(AtomicBool::new(false));
+
     let main_tx2 = main_tx.clone();
+    let error_sent_reader = Arc::clone(&error_sent);
     let read_handle = tokio::spawn(async move {
         while let Some(Ok(msg)) = read.next().await {
             if let Message::Text(s) = msg {
                 if let Ok(parsed) = serde_json::from_str::<ServerMessage>(&s) {
+                    if matches!(parsed, ServerMessage::Error { .. }) {
+                        error_sent_reader.store(true, Ordering::SeqCst);
+                    }
                     let _ = main_tx2.send(parsed);
                 }
             }
+        }
+        if !error_sent_reader.swap(true, Ordering::SeqCst) {
+            let _ = main_tx2.send(ServerMessage::Error {
+                message: "Connection lost".to_string(),
+            });
         }
     });
 

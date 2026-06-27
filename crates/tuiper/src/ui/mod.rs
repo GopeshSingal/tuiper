@@ -4,6 +4,7 @@ mod leaderboard;
 mod lobby;
 mod login;
 mod logo;
+mod notification;
 mod queue;
 mod race;
 mod results;
@@ -22,15 +23,18 @@ use ratatui::Frame;
 
 pub fn draw(frame: &mut Frame, app: &mut App, ws_url: &str) {
     let area = frame.area();
-    let theme = &app.theme;
-    frame.render_widget(Block::default().style(base_style(theme)), area);
+    frame.render_widget(Block::default().style(base_style(&app.theme)), area);
 
     if app.screen.uses_shell() {
         let (sidebar, main) = shell::split_shell(area);
-        shell::draw_sidebar(frame, sidebar, theme, app.screen);
+        shell::draw_sidebar(frame, sidebar, &app.theme, app.screen);
         draw_main_content(frame, main, app, ws_url);
     } else {
         draw_main_content(frame, area, app, ws_url);
+    }
+
+    if let Some(ref notification) = app.notification {
+        notification::draw_notification(frame, area, &app.theme, notification);
     }
 }
 
