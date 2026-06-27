@@ -6,10 +6,11 @@ use super::common::{base_style, default_block};
 use ratatui::layout::{Constraint, Direction, Layout, Rect};
 use ratatui::style::{Color, Modifier};
 use ratatui::text::{Line, Span};
-use ratatui::widgets::{Paragraph, Wrap};
+use ratatui::widgets::{Block, Borders, Paragraph, Wrap};
 use ratatui::Frame;
 
 const SIDEBAR_WIDTH: u16 = 24;
+const SIDEBAR_NAV_HINT: &str = "Shift + ↑/↓ or click to navigate";
 
 struct NavItem {
     label: &'static str,
@@ -64,6 +65,37 @@ pub fn split_shell(area: Rect) -> (Rect, Rect) {
     (chunks[0], chunks[1])
 }
 
+fn sidebar_inner(area: Rect) -> Rect {
+    Block::default()
+        .borders(Borders::ALL)
+        .title("Tuiper")
+        .inner(area)
+}
+
+fn sidebar_nav_header_rows(content_width: u16) -> u16 {
+    let width = content_width.max(1) as usize;
+    let hint_lines = SIDEBAR_NAV_HINT.chars().count().div_ceil(width) as u16;
+    hint_lines + 1
+}
+
+pub fn screen_at_sidebar_click(area: Rect, column: u16, row: u16) -> Option<Screen> {
+    let (sidebar, _) = split_shell(area);
+    if column < sidebar.x || column >= sidebar.x + sidebar.width {
+        return None;
+    }
+    let inner = sidebar_inner(sidebar);
+    if row < inner.y || row >= inner.y + inner.height {
+        return None;
+    }
+    let rel_row = row - inner.y;
+    let header_rows = sidebar_nav_header_rows(inner.width);
+    if rel_row < header_rows {
+        return None;
+    }
+    let idx = (rel_row - header_rows) as usize;
+    NAV_ITEMS.get(idx).map(|item| item.screen)
+}
+
 pub fn draw_sidebar(frame: &mut Frame, area: Rect, theme: &Theme, screen: Screen) {
     let block = default_block("Tuiper", theme);
     let inner = block.inner(area);
@@ -71,7 +103,7 @@ pub fn draw_sidebar(frame: &mut Frame, area: Rect, theme: &Theme, screen: Screen
 
     let hint_style = base_style(theme).fg(Color::DarkGray);
     let mut lines: Vec<Line> = vec![
-        Line::from(Span::styled("Shift + ↑/↓ to navigate", hint_style)),
+        Line::from(Span::styled(SIDEBAR_NAV_HINT, hint_style)),
         Line::from(""),
     ];
     for item in NAV_ITEMS {

@@ -11,7 +11,7 @@ mod results;
 mod shell;
 mod statistics;
 
-pub use shell::adjacent_shell_screen;
+pub use shell::{adjacent_shell_screen, screen_at_sidebar_click, split_shell};
 
 use crate::app::{App, Screen};
 

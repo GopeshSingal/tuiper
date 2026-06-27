@@ -10,9 +10,10 @@ mod words;
 use app::{App, Screen};
 use theme::{ThemeEditColumn, ThemeField};
 
-use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers};
+use crossterm::event::{self, Event, KeyCode, KeyEventKind, KeyModifiers, MouseButton, MouseEvent, MouseEventKind};
 use dotenvy::dotenv;
 use ratatui::backend::CrosstermBackend;
+use ratatui::layout::Rect;
 use ratatui::Terminal;
 use std::io;
 use std::sync::mpsc;
@@ -110,6 +111,20 @@ fn handle_shell_nav(app: &mut App, key: &event::KeyEvent, ws_url: &str) -> bool 
     }
 }
 
+fn handle_shell_mouse(app: &mut App, mouse: &MouseEvent, area: Rect, ws_url: &str) -> bool {
+    if !app.screen.uses_shell() {
+        return false;
+    }
+    if mouse.kind != MouseEventKind::Down(MouseButton::Left) {
+        return false;
+    }
+    if let Some(screen) = ui::screen_at_sidebar_click(area, mouse.column, mouse.row) {
+        go_to_shell_screen(app, screen, ws_url);
+        return true;
+    }
+    false
+}
+
 fn submit_login(app: &mut App, ws_url: &str) {
     if app.login_username.trim().is_empty() {
         app.enter_as_guest();
@@ -165,14 +180,15 @@ fn run_app(
         app.tick();
 
         if event::poll(Duration::from_millis(50))? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind != KeyEventKind::Press {
-                    continue;
-                }
-                if handle_shell_nav(app, &key, ws_url) {
-                    continue;
-                }
-                match app.screen {
+            match event::read()? {
+                Event::Key(key) => {
+                    if key.kind != KeyEventKind::Press {
+                        continue;
+                    }
+                    if handle_shell_nav(app, &key, ws_url) {
+                        continue;
+                    }
+                    match app.screen {
                     Screen::Login => match key.code {
                         KeyCode::Esc => {
                             app.quit = true;
@@ -419,6 +435,16 @@ fn run_app(
                         }
                     }
                 }
+                }
+                Event::Mouse(mouse) => {
+                    if let Ok(size) = terminal.size() {
+                        let area = Rect::new(0, 0, size.width, size.height);
+                        if handle_shell_mouse(app, &mouse, area, ws_url) {
+                            continue;
+                        }
+                    }
+                }
+                _ => {}
             }
         }
     }
